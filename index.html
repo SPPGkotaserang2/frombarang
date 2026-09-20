@@ -16,7 +16,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
-    <!-- SweetAlert2 untuk Notifikasi & Dialog Profesional -->
+    <!-- SweetAlert2 untuk Notifikasi & Dialog -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <style>
@@ -25,13 +25,11 @@
             background-color: #f3f4f6;
         }
 
-        /* Custom Styling SweetAlert agar selaras dengan desain Tailwind */
         .swal2-popup {
             font-family: 'Inter', sans-serif !important;
             border-radius: 1rem !important;
         }
 
-        /* Styling khusus cetak / Print CSS */
         @media print {
             .no-print {
                 display: none !important;
@@ -68,6 +66,9 @@
                 padding: 6px 8px !important;
                 font-size: 11pt !important;
             }
+            .photo-upload-btn, .photo-download-btn {
+                display: none !important;
+            }
         }
     </style>
 </head>
@@ -77,9 +78,8 @@
     <div id="loginScreen" class="fixed inset-0 bg-slate-900 z-50 flex items-center justify-center p-4">
         <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full border border-gray-100">
             <div class="text-center mb-6">
-                <!-- Logo Lokal dari logo.png -->
                 <div class="w-20 h-20 mx-auto mb-3 flex items-center justify-center">
-                    <img src="logo.png" alt="Logo Sistem" class="max-w-full max-h-full object-contain">
+                    <img src="logo.png" alt="Logo Sistem" class="max-w-full max-h-full object-contain" onerror="this.src='https://via.placeholder.com/80?text=LOGO'">
                 </div>
                 <h2 class="text-2xl font-bold text-gray-800">Login Sistem</h2>
                 <p class="text-xs text-gray-500 mt-1">Masukkan akun Admin untuk melanjutkan</p>
@@ -105,11 +105,25 @@
     </div>
 
     <!-- MAIN APP CONTENT -->
-    <div id="mainApp" class="hidden max-w-5xl mx-auto">
-        <!-- Datalist Global untuk Pencarian Nama Bahan Baku -->
+    <div id="mainApp" class="hidden max-w-6xl mx-auto">
+        <!-- Datalist Global untuk Nama Bahan Baku & Satuan -->
         <datalist id="masterItemsList"></datalist>
+        <datalist id="satuanList">
+            <option value="kg"></option>
+            <option value="gram"></option>
+            <option value="liter"></option>
+            <option value="ml"></option>
+            <option value="pcs"></option>
+            <option value="box"></option>
+            <option value="pack"></option>
+            <option value="karung"></option>
+            <option value="kaleng"></option>
+            <option value="ikat"></option>
+            <option value="botol"></option>
+            <option value="dus"></option>
+        </datalist>
 
-        <!-- Panel Filter Rentang Tanggal & Aksi (Non-Print) -->
+        <!-- Panel Filter Rentang Tanggal & Aksi -->
         <div class="no-print bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6 space-y-4">
             <div class="flex flex-wrap justify-between items-center gap-4 border-b pb-4">
                 <div>
@@ -138,9 +152,7 @@
                 </div>
             </div>
 
-            <!-- Area Ekspor & Pencarian Rentang Tanggal -->
             <div class="flex flex-wrap justify-between items-end gap-4">
-                <!-- Filter Tanggal -->
                 <div class="flex flex-wrap items-end gap-3 bg-gray-50 p-3 rounded-lg border border-gray-200">
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1">Dari Tanggal</label>
@@ -158,7 +170,6 @@
                     </button>
                 </div>
 
-                <!-- Tombol Ekspor File -->
                 <div class="flex items-center gap-2 flex-wrap bg-emerald-50 p-3 rounded-lg border border-emerald-200">
                     <span class="text-xs font-semibold text-emerald-800 uppercase mr-1">Ekspor:</span>
                     <button onclick="exportToPNG()" class="px-3 py-1.5 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-md transition-colors flex items-center gap-1.5">
@@ -176,8 +187,6 @@
 
         <!-- Lembar Form Utama -->
         <div id="formContent" class="print-container bg-white p-6 sm:p-10 rounded-xl shadow-md border border-gray-200">
-            
-            <!-- Header Dokumen Tanpa Logo -->
             <div class="border-b-2 border-gray-800 pb-4 mb-6">
                 <div class="flex justify-between items-start gap-4">
                     <div>
@@ -185,17 +194,13 @@
                         <p class="text-sm text-gray-600">SPPG KOTA SERANG SERANG SERANG 2</p>
                     </div>
 
-                    <!-- Hari dan Tanggal -->
                     <div class="text-right bg-gray-50 p-3 rounded-lg border border-gray-200 sm:min-w-[220px]">
                         <div class="text-xs font-semibold text-gray-500 uppercase">Hari & Tanggal</div>
-                        <div id="displayHariTanggal" class="text-sm font-bold text-gray-800 mt-1">
-                            <!-- Diisi via JS -->
-                        </div>
+                        <div id="displayHariTanggal" class="text-sm font-bold text-gray-800 mt-1"></div>
                     </div>
                 </div>
             </div>
 
-            <!-- Detail Pilih Tanggal Input -->
             <div class="mb-6 text-sm no-print max-w-xs">
                 <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Pilih Tanggal Transaksi</label>
                 <input type="date" id="inputDate" onchange="onDateInputChange(this.value)" class="input-print-border w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none">
@@ -207,28 +212,25 @@
                     <thead>
                         <tr class="bg-gray-100 text-gray-700 font-semibold uppercase text-xs">
                             <th class="border border-gray-300 p-2 text-center w-12">No</th>
-                            <th class="border border-gray-300 p-2 min-w-[200px]">Nama Bahan Baku</th>
-                            <th class="border border-gray-300 p-2 text-center w-24">Order</th>
-                            <th class="border border-gray-300 p-2 text-center w-24">Masuk</th>
-                            <th class="border border-gray-300 p-2 w-28">Satuan</th>
-                            <th class="border border-gray-300 p-2 w-32">Merk</th>
-                            <th class="border border-gray-300 p-2 min-w-[160px]">Keterangan</th>
+                            <th class="border border-gray-300 p-2 text-center w-24">Foto</th>
+                            <th class="border border-gray-300 p-2 min-w-[180px]">Nama Bahan Baku</th>
+                            <th class="border border-gray-300 p-2 text-center w-20">Order</th>
+                            <th class="border border-gray-300 p-2 text-center w-20">Masuk</th>
+                            <th class="border border-gray-300 p-2 w-24">Satuan</th>
+                            <th class="border border-gray-300 p-2 w-28">Merk</th>
+                            <th class="border border-gray-300 p-2 min-w-[140px]">Keterangan</th>
                             <th class="border border-gray-300 p-2 text-center w-12 no-print">Aksi</th>
                         </tr>
                     </thead>
-                    <tbody id="tableBody">
-                        <!-- Baris tabel ditambahkan via JavaScript -->
-                    </tbody>
+                    <tbody id="tableBody"></tbody>
                 </table>
             </div>
 
-            <!-- Tombol Tambah Baris -->
             <div class="mb-8 no-print flex flex-wrap gap-2">
                 <button onclick="addRow()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
                     <i class="fa-solid fa-plus"></i> Tambah Baris
                 </button>
             </div>
-
         </div>
     </div>
 
@@ -251,9 +253,7 @@
                 <input type="text" id="searchMasterInput" oninput="renderMasterList()" placeholder="Cari di daftar master..." class="w-full p-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500">
             </div>
 
-            <div class="max-h-60 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100" id="masterItemsContainer">
-                <!-- Daftar item dirender via JS -->
-            </div>
+            <div class="max-h-60 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100" id="masterItemsContainer"></div>
 
             <div class="mt-5 text-right">
                 <button onclick="closeMasterModal()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-medium rounded-lg transition-colors">
@@ -273,15 +273,23 @@
 
             <p class="text-xs text-gray-500 mb-3">Klik pada salah satu tanggal di bawah untuk memuat data transaksi tersebut ke form utama.</p>
 
-            <div class="max-h-80 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100" id="archiveItemsContainer">
-                <!-- Daftar arsip akan dirender di sini -->
-            </div>
+            <div class="max-h-80 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100" id="archiveItemsContainer"></div>
 
             <div class="mt-5 text-right">
                 <button onclick="closeArchiveModal()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-medium rounded-lg transition-colors">
                     Tutup
                 </button>
             </div>
+        </div>
+    </div>
+
+    <!-- Modal Preview Gambar Foto -->
+    <div id="imagePreviewModal" class="fixed inset-0 bg-black/70 hidden z-50 flex items-center justify-center p-4 no-print" onclick="closeImagePreview()">
+        <div class="relative max-w-2xl w-full bg-white rounded-xl overflow-hidden shadow-2xl p-2" onclick="event.stopPropagation()">
+            <button onclick="closeImagePreview()" class="absolute top-3 right-3 bg-gray-800/70 hover:bg-gray-800 text-white w-8 h-8 rounded-full flex items-center justify-center z-10 transition-colors">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <img id="previewImageSrc" src="" alt="Foto Barang" class="w-full h-auto max-h-[80vh] object-contain rounded-lg">
         </div>
     </div>
 
@@ -303,7 +311,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // Binding fungsi Firebase ke scope Window
         window.saveDataToFirebase = async function(dateKey, items) {
             try {
                 await setDoc(doc(db, "penerimaan_barang", dateKey), {
@@ -361,9 +368,11 @@
         };
     </script>
 
-    <!-- LOGIKA APLIKASI UTAMA & EKSPOR -->
+    <!-- LOGIKA APLIKASI UTAMA -->
     <script>
-        // FUNGSI NOTIFIKASI PROFESIONAL (SWEETALERT2)
+        // MASUKKAN URL GOOGLE APPS SCRIPT WEB APP ANDA DI SINI
+        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyIZfCbN4ET9DxC0KOlFlFesI4muSbtMs0_DFjMQ-_JaQ0Bhc7udTOdDyWigVhJuYdkng/exec";
+
         const Toast = Swal.mixin({
             toast: true,
             position: 'top-end',
@@ -383,7 +392,6 @@
             });
         }
 
-        // AUTHENTICATION
         window.handleLogin = function(e) {
             e.preventDefault();
             const u = document.getElementById('loginUsername').value;
@@ -423,7 +431,6 @@
             loadTodayData();
         }
 
-        // SISTEM FORM PENERIMAAN BAHAN BAKU
         const HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
         const BULAN = [
             'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -474,7 +481,7 @@
             document.getElementById('displayHariTanggal').innerText = `${namaHari}, ${tanggal} ${namaBulan} ${tahun}`;
         }
 
-        window.addRow = function(nama = '', order = '', masuk = '', satuan = 'kg', merk = '', ket = '') {
+        window.addRow = function(nama = '', order = '', masuk = '', satuan = 'kg', merk = '', ket = '', photo = '', fileId = '') {
             const tbody = document.getElementById('tableBody');
             const rowCount = tbody.children.length + 1;
 
@@ -485,8 +492,34 @@
 
             const tr = document.createElement('tr');
             tr.className = 'hover:bg-gray-50 transition-colors';
+            
+            const photoSrc = photo || '';
+            const hasPhoto = !!photoSrc;
+
             tr.innerHTML = `
                 <td class="border border-gray-300 p-2 text-center font-medium row-number">${rowCount}</td>
+                <td class="border border-gray-300 p-1 text-center align-middle">
+                    <div class="relative group flex items-center justify-center gap-1">
+                        <input type="file" accept="image/*" class="hidden photo-input" onchange="handlePhotoUpload(this)">
+                        <input type="hidden" class="photo-data" value="${photoSrc}">
+                        <input type="hidden" class="drive-file-id" value="${fileId}">
+                        
+                        <div class="photo-preview ${hasPhoto ? '' : 'hidden'} relative inline-block">
+                            <img src="${photoSrc}" onclick="openImagePreview('${photoSrc}')" class="w-10 h-10 object-cover rounded border border-gray-300 cursor-pointer shadow-sm hover:opacity-80 transition-opacity">
+                            <button type="button" onclick="removePhoto(this)" title="Hapus Foto" class="no-print absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-4 h-4 text-[10px] flex items-center justify-center shadow">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+
+                        <a href="${photoSrc}" target="_blank" download title="Unduh Foto" class="photo-download-btn no-print ${hasPhoto ? '' : 'hidden'} p-1.5 text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 rounded transition-colors">
+                            <i class="fa-solid fa-download text-xs"></i>
+                        </a>
+
+                        <button type="button" onclick="triggerPhotoInput(this)" title="Unggah Foto" class="photo-upload-btn no-print ${hasPhoto ? 'hidden' : ''} w-9 h-9 border border-dashed border-gray-300 hover:border-indigo-500 rounded text-gray-400 hover:text-indigo-600 flex items-center justify-center transition-colors bg-gray-50 hover:bg-indigo-50">
+                            <i class="fa-solid fa-camera text-sm"></i>
+                        </button>
+                    </div>
+                </td>
                 <td class="border border-gray-300 p-1">
                     <input type="text" list="masterItemsList" value="${nama}" onchange="handleItemInputChange(this)" placeholder="Cari / Ketik Nama Barang" class="item-input input-print-border w-full p-1.5 border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:outline-none text-sm">
                 </td>
@@ -497,17 +530,7 @@
                     <input type="number" min="0" step="any" value="${masuk}" placeholder="0" class="input-print-border w-full p-1.5 border border-gray-200 rounded text-center focus:ring-1 focus:ring-indigo-500 focus:outline-none text-sm">
                 </td>
                 <td class="border border-gray-300 p-1">
-                    <select class="input-print-border w-full p-1.5 border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:outline-none text-sm bg-white">
-                        <option value="kg" ${satuan === 'kg' ? 'selected' : ''}>kg</option>
-                        <option value="gram" ${satuan === 'gram' ? 'selected' : ''}>gram</option>
-                        <option value="liter" ${satuan === 'liter' ? 'selected' : ''}>liter</option>
-                        <option value="ml" ${satuan === 'ml' ? 'selected' : ''}>ml</option>
-                        <option value="pcs" ${satuan === 'pcs' ? 'selected' : ''}>pcs</option>
-                        <option value="box" ${satuan === 'box' ? 'selected' : ''}>box</option>
-                        <option value="pack" ${satuan === 'pack' ? 'selected' : ''}>pack</option>
-                        <option value="karung" ${satuan === 'karung' ? 'selected' : ''}>karung</option>
-                        <option value="kaleng" ${satuan === 'kaleng' ? 'selected' : ''}>kaleng</option>
-                    </select>
+                    <input type="text" list="satuanList" value="${satuan}" placeholder="Satuan (kg, pcs...)" class="input-print-border w-full p-1.5 border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:outline-none text-sm">
                 </td>
                 <td class="border border-gray-300 p-1">
                     <input type="text" value="${merk}" placeholder="" class="input-print-border w-full p-1.5 border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:outline-none text-sm">
@@ -525,6 +548,130 @@
             tbody.appendChild(tr);
         };
 
+        window.triggerPhotoInput = function(btn) {
+            const container = btn.closest('td');
+            const fileInput = container.querySelector('.photo-input');
+            fileInput.click();
+        };
+
+        window.handlePhotoUpload = function(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            if (!file.type.startsWith('image/')) {
+                showToast('error', 'Harap pilih file gambar!');
+                return;
+            }
+
+            const row = input.closest('tr');
+            const itemInput = row.querySelector('.item-input');
+            let namaBarang = itemInput ? itemInput.value.trim() : '';
+            if (!namaBarang) namaBarang = "TanpaNama";
+            namaBarang = namaBarang.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+            const dateVal = document.getElementById('inputDate').value || getFormattedToday();
+            const fileExt = file.name.split('.').pop() || 'jpg';
+            const customFileName = `${namaBarang}_${dateVal}_${Date.now()}.${fileExt}`;
+
+            showToast('info', 'Mengunggah foto ke Google Sistem...');
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const base64Data = e.target.result;
+
+                try {
+                    const response = await fetch(GAS_WEB_APP_URL, {
+                        method: "POST",
+                        body: JSON.stringify({
+                            image: base64Data,
+                            fileName: customFileName
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (result.status === "success") {
+                        const imageUrl = result.downloadUrl;
+                        const fileId = result.fileId;
+                        const container = input.closest('td');
+                        const photoDataInput = container.querySelector('.photo-data');
+                        const fileIdInput = container.querySelector('.drive-file-id');
+                        const previewContainer = container.querySelector('.photo-preview');
+                        const previewImg = previewContainer.querySelector('img');
+                        const uploadBtn = container.querySelector('.photo-upload-btn');
+                        const downloadBtn = container.querySelector('.photo-download-btn');
+
+                        photoDataInput.value = imageUrl;
+                        if (fileIdInput) fileIdInput.value = fileId;
+
+                        previewImg.src = imageUrl;
+                        previewImg.setAttribute('onclick', `openImagePreview('${imageUrl}')`);
+                        
+                        if (downloadBtn) {
+                            downloadBtn.href = imageUrl;
+                            downloadBtn.classList.remove('hidden');
+                        }
+
+                        previewContainer.classList.remove('hidden');
+                        uploadBtn.classList.add('hidden');
+
+                        showToast('success', `Foto tersimpan di  Sistem!`);
+                    } else {
+                        throw new Error(result.message);
+                    }
+                } catch (err) {
+                    console.error("Gagal upload foto ke Sistem :", err);
+                    showToast('error', "Gagal mengunggah foto ke sISTEM");
+                }
+            };
+            reader.readAsDataURL(file);
+        };
+
+        window.removePhoto = async function(btn) {
+            const container = btn.closest('td');
+            const fileInput = container.querySelector('.photo-input');
+            const photoDataInput = container.querySelector('.photo-data');
+            const fileIdInput = container.querySelector('.drive-file-id');
+            const previewContainer = container.querySelector('.photo-preview');
+            const uploadBtn = container.querySelector('.photo-upload-btn');
+            const downloadBtn = container.querySelector('.photo-download-btn');
+
+            const fileId = fileIdInput ? fileIdInput.value : '';
+
+            if (fileId) {
+                showToast('info', 'Menghapus foto dari Google Sistem...');
+                try {
+                    await fetch(GAS_WEB_APP_URL, {
+                        method: "POST",
+                        body: JSON.stringify({
+                            action: "delete",
+                            fileId: fileId
+                        })
+                    });
+                    showToast('success', 'Foto berhasil dihapus dari Sistem!');
+                } catch (err) {
+                    console.error("Gagal menghapus file dari Sistem :", err);
+                }
+            }
+
+            fileInput.value = '';
+            photoDataInput.value = '';
+            if (fileIdInput) fileIdInput.value = '';
+            previewContainer.classList.add('hidden');
+            if (downloadBtn) downloadBtn.classList.add('hidden');
+            uploadBtn.classList.remove('hidden');
+        };
+
+        window.openImagePreview = function(src) {
+            if (!src) return;
+            document.getElementById('previewImageSrc').src = src;
+            document.getElementById('imagePreviewModal').classList.remove('hidden');
+        };
+
+        window.closeImagePreview = function() {
+            document.getElementById('imagePreviewModal').classList.add('hidden');
+        };
+
         window.handleItemInputChange = function(inputElem) {
             const val = inputElem.value.trim();
             if (val && !masterItems.includes(val)) {
@@ -533,7 +680,6 @@
             }
         };
 
-        /* MASTER MODAL */
         window.openMasterModal = function() {
             document.getElementById('masterModal').classList.remove('hidden');
             document.getElementById('searchMasterInput').value = '';
@@ -607,7 +753,6 @@
             });
         };
 
-        /* ARCHIVE MODAL */
         window.openArchiveModal = async function() {
             document.getElementById('archiveModal').classList.remove('hidden');
             const container = document.getElementById('archiveItemsContainer');
@@ -653,13 +798,31 @@
             showToast('info', `Memuat data arsip tanggal ${dateStr}`);
         };
 
-        window.deleteRow = function(btn) {
+        window.deleteRow = async function(btn) {
             const tbody = document.getElementById('tableBody');
             if (tbody.children.length <= 1) {
                 showToast('warning', 'Tabel minimal harus memiliki 1 baris.');
                 return;
             }
+
             const row = btn.closest('tr');
+            const fileIdInput = row.querySelector('.drive-file-id');
+            const fileId = fileIdInput ? fileIdInput.value : '';
+
+            if (fileId) {
+                try {
+                    await fetch(GAS_WEB_APP_URL, {
+                        method: "POST",
+                        body: JSON.stringify({
+                            action: "delete",
+                            fileId: fileId
+                        })
+                    });
+                } catch (err) {
+                    console.error("Gagal hapus foto dari Sistem :", err);
+                }
+            }
+
             row.remove();
             reindexRows();
         };
@@ -683,7 +846,9 @@
             const dataToSave = [];
 
             rows.forEach(row => {
-                const inputs = row.querySelectorAll('input, select');
+                const photoData = row.querySelector('.photo-data') ? row.querySelector('.photo-data').value : '';
+                const fileId = row.querySelector('.drive-file-id') ? row.querySelector('.drive-file-id').value : '';
+                const inputs = row.querySelectorAll('input:not(.photo-data):not(.photo-input):not(.drive-file-id), select');
                 const nama = inputs[0] ? inputs[0].value : '';
                 const order = inputs[1] ? inputs[1].value : '';
                 const masuk = inputs[2] ? inputs[2].value : '';
@@ -691,8 +856,8 @@
                 const merk = inputs[4] ? inputs[4].value : '';
                 const ket = inputs[5] ? inputs[5].value : '';
 
-                if (nama) {
-                    dataToSave.push({ nama, order, masuk, satuan, merk, ket });
+                if (nama || photoData) {
+                    dataToSave.push({ nama, order, masuk, satuan, merk, ket, photo: photoData, fileId: fileId });
                 }
             });
 
@@ -711,7 +876,7 @@
 
             if (records && records.length > 0) {
                 records.forEach(item => {
-                    addRow(item.nama, item.order, item.masuk, item.satuan, item.merk, item.ket);
+                    addRow(item.nama, item.order, item.masuk, item.satuan, item.merk, item.ket, item.photo || '', item.fileId || '');
                 });
             } else {
                 addRow();
@@ -756,8 +921,7 @@
 
             filteredDocs.sort((a, b) => a.date.localeCompare(b.date)).forEach(docData => {
                 docData.items.forEach(item => {
-                    // Menampilkan keterangan asli tanpa awalan tanggal [YYYY-MM-DD]
-                    addRow(item.nama, item.order, item.masuk, item.satuan, item.merk, item.ket || '');
+                    addRow(item.nama, item.order, item.masuk, item.satuan, item.merk, item.ket || '', item.photo || '', item.fileId || '');
                 });
             });
 
@@ -785,9 +949,8 @@
             });
         };
 
-        // FUNGSI UTILITAS KONVERSI INPUT KE SPAN SEBELUM EKSPOR
         function replaceInputsWithText(element) {
-            const inputs = element.querySelectorAll('input, select');
+            const inputs = element.querySelectorAll('input:not(.photo-data):not(.photo-input):not(.drive-file-id), select');
             const replacedList = [];
 
             inputs.forEach(input => {
@@ -820,7 +983,6 @@
             });
         }
 
-        /* FUNGSI EKSPOR PNG */
         window.exportToPNG = function() {
             const element = document.getElementById('formContent');
             const dateStr = document.getElementById('inputDate').value || getFormattedToday();
@@ -847,7 +1009,6 @@
             });
         };
 
-        /* FUNGSI EKSPOR PDF */
         window.exportToPDF = function() {
             const element = document.getElementById('formContent');
             const dateStr = document.getElementById('inputDate').value || getFormattedToday();
@@ -859,7 +1020,7 @@
                 filename:     `Penerimaan_Bahan_Baku_${dateStr}.pdf`,
                 image:        { type: 'jpeg', quality: 0.98 },
                 html2canvas:  { scale: 2, useCORS: true, ignoreElements: (el) => el.classList.contains('no-print') },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
             };
 
             html2pdf().set(opt).from(element).save().then(() => {
@@ -872,7 +1033,6 @@
             });
         };
 
-        /* FUNGSI EKSPOR EXCEL */
         window.exportToExcel = function() {
             const dateStr = document.getElementById('inputDate').value || getFormattedToday();
             const dateDisplay = document.getElementById('displayHariTanggal').innerText;
@@ -883,10 +1043,11 @@
             excelData.push(['FORM PENERIMAAN BAHAN BAKU']);
             excelData.push(['Tanggal:', dateDisplay]);
             excelData.push([]);
-            excelData.push(['No', 'Nama Bahan Baku', 'Order', 'Masuk', 'Satuan', 'Merk', 'Keterangan']);
+            excelData.push(['No', 'Nama Bahan Baku', 'Order', 'Masuk', 'Satuan', 'Merk', 'Keterangan', 'Link Foto']);
 
             rows.forEach(row => {
-                const inputs = row.querySelectorAll('input, select');
+                const photoData = row.querySelector('.photo-data') ? row.querySelector('.photo-data').value : '';
+                const inputs = row.querySelectorAll('input:not(.photo-data):not(.photo-input):not(.drive-file-id), select');
                 const no = row.querySelector('.row-number') ? row.querySelector('.row-number').innerText : '';
                 const nama = inputs[0] ? inputs[0].value : '';
                 const order = inputs[1] ? inputs[1].value : '';
@@ -895,8 +1056,8 @@
                 const merk = inputs[4] ? inputs[4].value : '';
                 const ket = inputs[5] ? inputs[5].value : '';
 
-                if (nama) {
-                    excelData.push([no, nama, Number(order) || 0, Number(masuk) || 0, satuan, merk, ket]);
+                if (nama || photoData) {
+                    excelData.push([no, nama, Number(order) || 0, Number(masuk) || 0, satuan, merk, ket, photoData || '-']);
                 }
             });
 
@@ -911,7 +1072,8 @@
                 { wch: 10 }, 
                 { wch: 10 }, 
                 { wch: 18 }, 
-                { wch: 25 }  
+                { wch: 25 },
+                { wch: 35 }
             ];
 
             XLSX.writeFile(workbook, `Penerimaan_Bahan_Baku_${dateStr}.xlsx`);
