@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Form Penerimaan Bahan Baku</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome untuk ikon -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Library Ekspor (html2canvas, html2pdf, SheetJS) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+
+        /* Styling khusus cetak / Print CSS */
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            body {
+                background-color: #ffffff !important;
+                color: #000000 !important;
+                padding: 0 !important;
+            }
+            .print-container {
+                box-shadow: none !important;
+                border: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+            input, select, textarea {
+                border: none !important;
+                background: transparent !important;
+                padding: 2px 0 !important;
+                appearance: none !important;
+                -webkit-appearance: none !important;
+            }
+            .input-print-border {
+                border-bottom: 1px dotted #ccc !important;
+            }
+            .print-table {
+                border-collapse: collapse !important;
+                width: 100% !important;
+            }
+            .print-table th, .print-table td {
+                border: 1px solid #000 !important;
+                padding: 6px 8px !important;
+                font-size: 11pt !important;
+            }
+        }
+    </style>
+</head>
+<body class="py-8 px-4 sm:px-6 lg:px-8 min-h-screen">
+
+    <!-- HALAMAN LOGIN -->
+    <div id="loginScreen" class="fixed inset-0 bg-slate-900 z-50 flex items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full border border-gray-100">
+            <div class="text-center mb-6">
+                <div class="w-12 h-12 mx-auto mb-3 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-xl font-bold">
+                    <i class="fa-solid fa-boxes-packing"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-800">Login Sistem</h2>
+                <p class="text-xs text-gray-500 mt-1">Masukkan akun Admin untuk melanjutkan</p>
+            </div>
+
+            <form onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Username</label>
+                    <input type="text" id="loginUsername" required placeholder="Masukkan Username" class="w-full p-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Kata Sandi</label>
+                    <input type="password" id="loginPassword" required placeholder="Masukkan Sandi" class="w-full p-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+                <div id="loginError" class="text-red-500 text-xs font-medium hidden text-center">
+                    Username atau kata sandi salah!
+                </div>
+                <button type="submit" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors text-sm shadow-md">
+                    Masuk
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN APP CONTENT -->
+    <div id="mainApp" class="hidden max-w-5xl mx-auto">
+        <!-- Datalist Global untuk Pencarian Nama Bahan Baku -->
+        <datalist id="masterItemsList"></datalist>
+
+        <!-- Panel Filter Rentang Tanggal & Aksi (Non-Print) -->
+        <div class="no-print bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6 space-y-4">
+            <div class="flex flex-wrap justify-between items-center gap-4 border-b pb-4">
+                <div>
+                    <h1 class="text-xl font-bold text-gray-800">Sistem Penerimaan Bahan Baku</h1>
+                    <p class="text-xs text-gray-500">Kelola, simpan terpusat, dan ekspor data.</p>
+                </div>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <button onclick="openArchiveModal()" class="px-3 py-2 text-sm font-medium text-amber-800 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors flex items-center gap-2 border border-amber-200">
+                        <i class="fa-solid fa-box-archive"></i> Lihat Data Arsip
+                    </button>
+                    <button onclick="openMasterModal()" class="px-3 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors flex items-center gap-2 border border-slate-300">
+                        <i class="fa-solid fa-boxes-stacked"></i> Kelola Master Barang
+                    </button>
+                    <button onclick="saveCurrentData()" class="px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors flex items-center gap-2">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> Simpan ke Sistem
+                    </button>
+                    <button onclick="resetForm()" class="px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors flex items-center gap-2">
+                        <i class="fa-solid fa-rotate-left"></i> Reset
+                    </button>
+                    <button onclick="window.print()" class="px-3 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-colors flex items-center gap-2">
+                        <i class="fa-solid fa-print"></i> Cetak
+                    </button>
+                    <button onclick="handleLogout()" class="px-3 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors flex items-center gap-2 border border-red-200">
+                        <i class="fa-solid fa-right-from-bracket"></i> Keluar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Area Ekspor & Pencarian Rentang Tanggal -->
+            <div class="flex flex-wrap justify-between items-end gap-4">
+                <!-- Filter Tanggal -->
+                <div class="flex flex-wrap items-end gap-3 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Dari Tanggal</label>
+                        <input type="date" id="startDate" class="p-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Sampai Tanggal</label>
+                        <input type="date" id="endDate" class="p-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <button onclick="filterByDateRange()" class="px-3 py-1.5 text-sm font-medium text-white bg-slate-700 hover:bg-slate-800 rounded-md transition-colors flex items-center gap-1">
+                        <i class="fa-solid fa-magnifying-glass"></i> Cari Data
+                    </button>
+                    <button onclick="loadTodayData()" class="px-3 py-1.5 text-sm font-medium text-gray-600 bg-gray-200 hover:bg-gray-300 rounded-md transition-colors">
+                        Hari Ini
+                    </button>
+                </div>
+
+                <!-- Tombol Ekspor File -->
+                <div class="flex items-center gap-2 flex-wrap bg-emerald-50 p-3 rounded-lg border border-emerald-200">
+                    <span class="text-xs font-semibold text-emerald-800 uppercase mr-1">Ekspor:</span>
+                    <button onclick="exportToPNG()" class="px-3 py-1.5 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-md transition-colors flex items-center gap-1.5">
+                        <i class="fa-solid fa-file-image"></i> PNG
+                    </button>
+                    <button onclick="exportToPDF()" class="px-3 py-1.5 text-sm font-medium text-white bg-rose-600 hover:bg-rose-700 rounded-md transition-colors flex items-center gap-1.5">
+                        <i class="fa-solid fa-file-pdf"></i> PDF
+                    </button>
+                    <button onclick="exportToExcel()" class="px-3 py-1.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-md transition-colors flex items-center gap-1.5">
+                        <i class="fa-solid fa-file-excel"></i> Excel
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lembar Form Utama -->
+        <div id="formContent" class="print-container bg-white p-6 sm:p-10 rounded-xl shadow-md border border-gray-200">
+            
+            <!-- Header Dokumen Tanpa Logo -->
+            <div class="border-b-2 border-gray-800 pb-4 mb-6">
+                <div class="flex justify-between items-start gap-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-900 uppercase tracking-wide">FORM PENERIMAAN BAHAN BAKU</h2>
+                        <p class="text-sm text-gray-600">SPPG KOTA SERANG SERANG SERANG 2</p>
+                    </div>
+
+                    <!-- Hari dan Tanggal -->
+                    <div class="text-right bg-gray-50 p-3 rounded-lg border border-gray-200 sm:min-w-[220px]">
+                        <div class="text-xs font-semibold text-gray-500 uppercase">Hari & Tanggal</div>
+                        <div id="displayHariTanggal" class="text-sm font-bold text-gray-800 mt-1">
+                            <!-- Diisi via JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detail Pilih Tanggal Input -->
+            <div class="mb-6 text-sm no-print max-w-xs">
+                <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Pilih Tanggal Transaksi</label>
+                <input type="date" id="inputDate" onchange="onDateInputChange(this.value)" class="input-print-border w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+
+            <!-- Tabel Penerimaan Bahan Baku -->
+            <div class="overflow-x-auto mb-6">
+                <table id="penerimaanTable" class="print-table w-full text-left border-collapse border border-gray-300 text-sm">
+                    <thead>
+                        <tr class="bg-gray-100 text-gray-700 font-semibold uppercase text-xs">
+                            <th class="border border-gray-300 p-2 text-center w-12">No</th>
+                            <th class="border border-gray-300 p-2 min-w-[200px]">Nama Bahan Baku</th>
+                            <th class="border border-gray-300 p-2 text-center w-24">Order</th>
+                            <th class="border border-gray-300 p-2 text-center w-24">Masuk</th>
+                            <th class="border border-gray-300 p-2 w-28">Satuan</th>
+                            <th class="border border-gray-300 p-2 w-32">Merk</th>
+                            <th class="border border-gray-300 p-2 min-w-[160px]">Keterangan</th>
+                            <th class="border border-gray-300 p-2 text-center w-12 no-print">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <!-- Baris tabel ditambahkan via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Tombol Tambah Baris -->
+            <div class="mb-8 no-print flex flex-wrap gap-2">
+                <button onclick="addRow()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+                    <i class="fa-solid fa-plus"></i> Tambah Baris
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Modal Kelola Master Bahan Baku -->
+    <div id="masterModal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4 no-print">
+        <div class="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl border border-gray-200">
+            <div class="flex justify-between items-center mb-4 border-b pb-3">
+                <h3 class="text-lg font-bold text-gray-800"><i class="fa-solid fa-boxes-stacked text-indigo-600 mr-2"></i>Kelola Master Bahan Baku</h3>
+                <button onclick="closeMasterModal()" class="text-gray-400 hover:text-gray-600 text-lg"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="flex gap-2 mb-4">
+                <input type="text" id="newMasterInput" placeholder="Ketik nama bahan baku baru..." class="flex-1 p-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <button onclick="addMasterItemFromModal()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-1">
+                    <i class="fa-solid fa-plus"></i> Tambah
+                </button>
+            </div>
+
+            <div class="mb-3">
+                <input type="text" id="searchMasterInput" oninput="renderMasterList()" placeholder="Cari di daftar master..." class="w-full p-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500">
+            </div>
+
+            <div class="max-h-60 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100" id="masterItemsContainer">
+                <!-- Daftar item dirender via JS -->
+            </div>
+
+            <div class="mt-5 text-right">
+                <button onclick="closeMasterModal()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-medium rounded-lg transition-colors">
+                    Selesai
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Data Arsip -->
+    <div id="archiveModal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4 no-print">
+        <div class="bg-white rounded-xl max-w-2xl w-full p-6 shadow-xl border border-gray-200">
+            <div class="flex justify-between items-center mb-4 border-b pb-3">
+                <h3 class="text-lg font-bold text-gray-800"><i class="fa-solid fa-box-archive text-amber-600 mr-2"></i>Data Arsip Penerimaan</h3>
+                <button onclick="closeArchiveModal()" class="text-gray-400 hover:text-gray-600 text-lg"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <p class="text-xs text-gray-500 mb-3">Klik pada salah satu tanggal di bawah untuk memuat data transaksi tersebut ke form utama.</p>
+
+            <div class="max-h-80 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100" id="archiveItemsContainer">
+                <!-- Daftar arsip akan dirender di sini -->
+            </div>
+
+            <div class="mt-5 text-right">
+                <button onclick="closeArchiveModal()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-medium rounded-lg transition-colors">
+                    Tutup
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT FIREBASE -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCOlHm2fFmClq9wpVcdcQ0Y_6OqFOnpvaM",
+            authDomain: "from-barang.firebaseapp.com",
+            projectId: "from-barang",
+            storageBucket: "from-barang.firebasestorage.app",
+            messagingSenderId: "282525593325",
+            appId: "1:282525593325:web:a687cac9c4ae8bcc49a6e4",
+            measurementId: "G-JBPE9HZ502"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Binding fungsi Firebase ke scope Window
+        window.saveDataToFirebase = async function(dateKey, items) {
+            try {
+                await setDoc(doc(db, "penerimaan_barang", dateKey), {
+                    date: dateKey,
+                    items: items,
+                    updatedAt: new Date().toISOString()
+                });
+                alert(`Data tanggal ${dateKey} berhasil disimpan ke Sistem!`);
+            } catch (e) {
+                console.error("Error saving to Sistem : ", e);
+                alert("Gagal menyimpan data ke Sistem : " + e.message);
+            }
+        };
+
+        window.loadDataFromFirebase = async function(dateKey) {
+            try {
+                const docRef = doc(db, "penerimaan_barang", dateKey);
+                const docSnap = await getDoc(docRef);
+                return docSnap.exists() ? docSnap.data().items : null;
+            } catch (e) {
+                console.error("Error loading from Sistem : ", e);
+                return null;
+            }
+        };
+
+        window.getAllArchivesFirebase = async function() {
+            try {
+                const querySnapshot = await getDocs(collection(db, "penerimaan_barang"));
+                const results = [];
+                querySnapshot.forEach((docSnap) => {
+                    results.push(docSnap.data());
+                });
+                return results;
+            } catch (e) {
+                console.error("Error fetching archives: ", e);
+                return [];
+            }
+        };
+
+        window.filterDataByDateRangeFirebase = async function(startDate, endDate) {
+            try {
+                const querySnapshot = await getDocs(collection(db, "penerimaan_barang"));
+                const results = [];
+                querySnapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    if (data.date >= startDate && data.date <= endDate) {
+                        results.push(data);
+                    }
+                });
+                return results;
+            } catch (e) {
+                console.error("Error filtering Sistem data: ", e);
+                return [];
+            }
+        };
+    </script>
+
+    <!-- LOGIKA APLIKASI UTAMA & EKSPOR -->
+    <script>
+        // AUTHENTICATION
+        window.handleLogin = function(e) {
+            e.preventDefault();
+            const u = document.getElementById('loginUsername').value;
+            const p = document.getElementById('loginPassword').value;
+
+            if (u === 'Admin' && p === 'Adminserang2') {
+                sessionStorage.setItem('isLoggedIn', 'true');
+                showMainApp();
+            } else {
+                document.getElementById('loginError').classList.remove('hidden');
+            }
+        };
+
+        window.handleLogout = function() {
+            sessionStorage.removeItem('isLoggedIn');
+            location.reload();
+        };
+
+        function showMainApp() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            updateDatalistOptions();
+            loadTodayData();
+        }
+
+        // SISTEM FORM PENERIMAAN BAHAN BAKU
+        const HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+        const BULAN = [
+            'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+            'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+        ];
+
+        let masterItems = JSON.parse(localStorage.getItem('master_items')) || [
+            'Tepung Terigu',
+            'Minyak Goreng',
+            'Gula Pasir',
+            'Garam',
+            'Telur Ayam'
+        ];
+
+        function saveMasterItems() {
+            localStorage.setItem('master_items', JSON.stringify(masterItems));
+            updateDatalistOptions();
+        }
+
+        function updateDatalistOptions() {
+            const datalist = document.getElementById('masterItemsList');
+            if(!datalist) return;
+            datalist.innerHTML = '';
+            masterItems.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item;
+                datalist.appendChild(opt);
+            });
+        }
+
+        function getFormattedToday() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function updateDateDisplay(dateString) {
+            const dateObj = dateString ? new Date(dateString) : new Date();
+            if (isNaN(dateObj.getTime())) return;
+
+            const namaHari = HARI[dateObj.getDay()];
+            const tanggal = dateObj.getDate();
+            const namaBulan = BULAN[dateObj.getMonth()];
+            const tahun = dateObj.getFullYear();
+
+            document.getElementById('displayHariTanggal').innerText = `${namaHari}, ${tanggal} ${namaBulan} ${tahun}`;
+        }
+
+        window.addRow = function(nama = '', order = '', masuk = '', satuan = 'kg', merk = '', ket = '') {
+            const tbody = document.getElementById('tableBody');
+            const rowCount = tbody.children.length + 1;
+
+            if (nama && !masterItems.includes(nama)) {
+                masterItems.push(nama);
+                saveMasterItems();
+            }
+
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-gray-50 transition-colors';
+            tr.innerHTML = `
+                <td class="border border-gray-300 p-2 text-center font-medium row-number">${rowCount}</td>
+                <td class="border border-gray-300 p-1">
+                    <input type="text" list="masterItemsList" value="${nama}" onchange="handleItemInputChange(this)" placeholder="Cari / Ketik Nama Barang" class="item-input input-print-border w-full p-1.5 border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:outline-none text-sm">
+                </td>
+                <td class="border border-gray-300 p-1">
+                    <input type="number" min="0" step="any" value="${order}" placeholder="0" class="input-print-border w-full p-1.5 border border-gray-200 rounded text-center focus:ring-1 focus:ring-indigo-500 focus:outline-none text-sm">
+                </td>
+                <td class="border border-gray-300 p-1">
+                    <input type="number" min="0" step="any" value="${masuk}" placeholder="0" class="input-print-border w-full p-1.5 border border-gray-200 rounded text-center focus:ring-1 focus:ring-indigo-500 focus:outline-none text-sm">
+                </td>
+                <td class="border border-gray-300 p-1">
+                    <select class="input-print-border w-full p-1.5 border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:outline-none text-sm bg-white">
+                        <option value="kg" ${satuan === 'kg' ? 'selected' : ''}>kg</option>
+                        <option value="gram" ${satuan === 'gram' ? 'selected' : ''}>gram</option>
+                        <option value="liter" ${satuan === 'liter' ? 'selected' : ''}>liter</option>
+                        <option value="ml" ${satuan === 'ml' ? 'selected' : ''}>ml</option>
+                        <option value="pcs" ${satuan === 'pcs' ? 'selected' : ''}>pcs</option>
+                        <option value="box" ${satuan === 'box' ? 'selected' : ''}>box</option>
+                        <option value="pack" ${satuan === 'pack' ? 'selected' : ''}>pack</option>
+                        <option value="karung" ${satuan === 'karung' ? 'selected' : ''}>karung</option>
+                        <option value="kaleng" ${satuan === 'kaleng' ? 'selected' : ''}>kaleng</option>
+                    </select>
+                </td>
+                <td class="border border-gray-300 p-1">
+                    <input type="text" value="${merk}" placeholder="Merk / Brand" class="input-print-border w-full p-1.5 border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:outline-none text-sm">
+                </td>
+                <td class="border border-gray-300 p-1">
+                    <input type="text" value="${ket}" placeholder="Kondisi / Catatan" class="input-print-border w-full p-1.5 border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:outline-none text-sm">
+                </td>
+                <td class="border border-gray-300 p-1 text-center no-print">
+                    <button onclick="deleteRow(this)" title="Hapus Baris" class="text-red-500 hover:text-red-700 p-1.5 rounded transition-colors">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </td>
+            `;
+
+            tbody.appendChild(tr);
+        };
+
+        window.handleItemInputChange = function(inputElem) {
+            const val = inputElem.value.trim();
+            if (val && !masterItems.includes(val)) {
+                masterItems.push(val);
+                saveMasterItems();
+            }
+        };
+
+        /* MASTER MODAL */
+        window.openMasterModal = function() {
+            document.getElementById('masterModal').classList.remove('hidden');
+            document.getElementById('searchMasterInput').value = '';
+            renderMasterList();
+        };
+
+        window.closeMasterModal = function() {
+            document.getElementById('masterModal').classList.add('hidden');
+        };
+
+        window.renderMasterList = function() {
+            const container = document.getElementById('masterItemsContainer');
+            const searchVal = document.getElementById('searchMasterInput').value.toLowerCase();
+            container.innerHTML = '';
+
+            const filtered = masterItems.filter(item => item.toLowerCase().includes(searchVal));
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="p-3 text-center text-xs text-gray-500">Tidak ada barang ditemukan.</div>`;
+                return;
+            }
+
+            filtered.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'flex justify-between items-center p-3 hover:bg-gray-50 text-sm';
+                div.innerHTML = `
+                    <span class="font-medium text-gray-700">${item}</span>
+                    <button onclick="deleteMasterItem('${item}')" class="text-red-500 hover:text-red-700 text-xs px-2 py-1 rounded hover:bg-red-50 transition-colors">
+                        <i class="fa-solid fa-trash mr-1"></i> Hapus
+                    </button>
+                `;
+                container.appendChild(div);
+            });
+        };
+
+        window.addMasterItemFromModal = function() {
+            const input = document.getElementById('newMasterInput');
+            const val = input.value.trim();
+
+            if (!val) return;
+
+            if (masterItems.includes(val)) {
+                alert('Barang ini sudah ada dalam master.');
+                return;
+            }
+
+            masterItems.push(val);
+            saveMasterItems();
+            input.value = '';
+            renderMasterList();
+        };
+
+        window.deleteMasterItem = function(itemName) {
+            if (confirm(`Hapus "${itemName}" dari daftar master barang?`)) {
+                masterItems = masterItems.filter(item => item !== itemName);
+                saveMasterItems();
+                renderMasterList();
+            }
+        };
+
+        /* ARCHIVE MODAL */
+        window.openArchiveModal = async function() {
+            document.getElementById('archiveModal').classList.remove('hidden');
+            const container = document.getElementById('archiveItemsContainer');
+            container.innerHTML = `<div class="p-4 text-center text-xs text-gray-500">Memuat data arsip...</div>`;
+
+            if (window.getAllArchivesFirebase) {
+                const archives = await window.getAllArchivesFirebase();
+                if (archives.length === 0) {
+                    container.innerHTML = `<div class="p-4 text-center text-xs text-gray-500">Belum ada data tersimpan di arsip.</div>`;
+                    return;
+                }
+
+                archives.sort((a, b) => b.date.localeCompare(a.date));
+                container.innerHTML = '';
+
+                archives.forEach(arc => {
+                    const itemCount = arc.items ? arc.items.length : 0;
+                    const div = document.createElement('div');
+                    div.className = 'flex justify-between items-center p-3 hover:bg-gray-50 cursor-pointer transition-colors';
+                    div.onclick = () => selectArchiveDate(arc.date);
+                    div.innerHTML = `
+                        <div>
+                            <div class="font-bold text-sm text-gray-800">${arc.date}</div>
+                            <div class="text-xs text-gray-500">${itemCount} Jenis Barang Tercatat</div>
+                        </div>
+                        <button class="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium rounded transition-colors">
+                            Buka
+                        </button>
+                    `;
+                    container.appendChild(div);
+                });
+            }
+        };
+
+        window.closeArchiveModal = function() {
+            document.getElementById('archiveModal').classList.add('hidden');
+        };
+
+        window.selectArchiveDate = function(dateStr) {
+            document.getElementById('inputDate').value = dateStr;
+            onDateInputChange(dateStr);
+            closeArchiveModal();
+        };
+
+        window.deleteRow = function(btn) {
+            const tbody = document.getElementById('tableBody');
+            if (tbody.children.length <= 1) {
+                alert('Tabel minimal harus memiliki 1 baris.');
+                return;
+            }
+            const row = btn.closest('tr');
+            row.remove();
+            reindexRows();
+        };
+
+        function reindexRows() {
+            const rows = document.querySelectorAll('#tableBody tr');
+            rows.forEach((row, index) => {
+                const cell = row.querySelector('.row-number');
+                if (cell) cell.innerText = index + 1;
+            });
+        }
+
+        window.saveCurrentData = async function() {
+            const dateKey = document.getElementById('inputDate').value;
+            if (!dateKey) return;
+
+            const rows = document.querySelectorAll('#tableBody tr');
+            const dataToSave = [];
+
+            rows.forEach(row => {
+                const inputs = row.querySelectorAll('input, select');
+                const nama = inputs[0] ? inputs[0].value : '';
+                const order = inputs[1] ? inputs[1].value : '';
+                const masuk = inputs[2] ? inputs[2].value : '';
+                const satuan = inputs[3] ? inputs[3].value : '';
+                const merk = inputs[4] ? inputs[4].value : '';
+                const ket = inputs[5] ? inputs[5].value : '';
+
+                if (nama) {
+                    dataToSave.push({ nama, order, masuk, satuan, merk, ket });
+                }
+            });
+
+            if (window.saveDataToFirebase) {
+                await window.saveDataToFirebase(dateKey, dataToSave);
+            }
+        };
+
+        async function loadDataByDate(dateKey) {
+            document.getElementById('tableBody').innerHTML = '';
+
+            let records = null;
+            if (window.loadDataFromFirebase) {
+                records = await window.loadDataFromFirebase(dateKey);
+            }
+
+            if (records && records.length > 0) {
+                records.forEach(item => {
+                    addRow(item.nama, item.order, item.masuk, item.satuan, item.merk, item.ket);
+                });
+            } else {
+                addRow();
+                addRow();
+            }
+        }
+
+        window.onDateInputChange = function(dateVal) {
+            updateDateDisplay(dateVal);
+            loadDataByDate(dateVal);
+        };
+
+        window.loadTodayData = function() {
+            const todayStr = getFormattedToday();
+            document.getElementById('inputDate').value = todayStr;
+            document.getElementById('startDate').value = todayStr;
+            document.getElementById('endDate').value = todayStr;
+            onDateInputChange(todayStr);
+        };
+
+        window.filterByDateRange = async function() {
+            const start = document.getElementById('startDate').value;
+            const end = document.getElementById('endDate').value;
+
+            if (!start || !end) {
+                alert('Silakan pilih rentang tanggal (Dari & Sampai).');
+                return;
+            }
+
+            document.getElementById('tableBody').innerHTML = '';
+
+            let filteredDocs = [];
+            if (window.filterDataByDateRangeFirebase) {
+                filteredDocs = await window.filterDataByDateRangeFirebase(start, end);
+            }
+
+            if (filteredDocs.length === 0) {
+                alert('Tidak ada data ditemukan pada rentang tanggal tersebut.');
+                addRow();
+                return;
+            }
+
+            filteredDocs.sort((a, b) => a.date.localeCompare(b.date)).forEach(docData => {
+                docData.items.forEach(item => {
+                    const ketCombined = `[${docData.date}] ${item.ket || ''}`;
+                    addRow(item.nama, item.order, item.masuk, item.satuan, item.merk, ketCombined);
+                });
+            });
+
+            document.getElementById('displayHariTanggal').innerText = `${start} s/d ${end}`;
+        };
+
+        window.resetForm = function() {
+            if (confirm('Apakah Anda yakin ingin mengosongkan tabel saat ini?')) {
+                document.getElementById('tableBody').innerHTML = '';
+                addRow();
+                addRow();
+            }
+        };
+
+        // FUNGSI UTILITAS KONVERSI INPUT KE SPAN SEBELUM EKSPOR
+        function replaceInputsWithText(element) {
+            const inputs = element.querySelectorAll('input, select');
+            const replacedList = [];
+
+            inputs.forEach(input => {
+                const span = document.createElement('span');
+                span.className = 'exported-text text-sm block py-1 font-medium text-gray-800';
+                
+                if (input.tagName.toLowerCase() === 'select') {
+                    span.innerText = input.options[input.selectedIndex] ? input.options[input.selectedIndex].text : '';
+                } else {
+                    span.innerText = input.value || '';
+                    if (input.type === 'number') {
+                        span.style.textAlign = 'center';
+                    }
+                }
+                
+                input.style.display = 'none';
+                input.parentNode.appendChild(span);
+                replacedList.push({ input, span });
+            });
+
+            return replacedList;
+        }
+
+        function restoreInputs(replacedList) {
+            replacedList.forEach(item => {
+                item.input.style.display = '';
+                if(item.span && item.span.parentNode) {
+                    item.span.parentNode.removeChild(item.span);
+                }
+            });
+        }
+
+        /* FUNGSI EKSPOR PNG */
+        window.exportToPNG = function() {
+            const element = document.getElementById('formContent');
+            const dateStr = document.getElementById('inputDate').value || getFormattedToday();
+
+            const replaced = replaceInputsWithText(element);
+
+            html2canvas(element, {
+                scale: 2,
+                useCORS: true,
+                backgroundColor: '#ffffff',
+                ignoreElements: (el) => el.classList.contains('no-print')
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `Penerimaan_Bahan_Baku_${dateStr}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+
+                restoreInputs(replaced);
+            }).catch(err => {
+                console.error("Gagal ekspor PNG:", err);
+                alert("Gagal mengekspor PNG: " + err.message);
+                restoreInputs(replaced);
+            });
+        };
+
+        /* FUNGSI EKSPOR PDF */
+        window.exportToPDF = function() {
+            const element = document.getElementById('formContent');
+            const dateStr = document.getElementById('inputDate').value || getFormattedToday();
+
+            const replaced = replaceInputsWithText(element);
+
+            const opt = {
+                margin:       [10, 10, 10, 10],
+                filename:     `Penerimaan_Bahan_Baku_${dateStr}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true, ignoreElements: (el) => el.classList.contains('no-print') },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opt).from(element).save().then(() => {
+                restoreInputs(replaced);
+            }).catch(err => {
+                console.error("Gagal ekspor PDF:", err);
+                alert("Gagal mengekspor PDF: " + err.message);
+                restoreInputs(replaced);
+            });
+        };
+
+        /* FUNGSI EKSPOR EXCEL */
+        window.exportToExcel = function() {
+            const dateStr = document.getElementById('inputDate').value || getFormattedToday();
+            const dateDisplay = document.getElementById('displayHariTanggal').innerText;
+            const rows = document.querySelectorAll('#tableBody tr');
+            
+            const excelData = [];
+            
+            excelData.push(['FORM PENERIMAAN BAHAN BAKU']);
+            excelData.push(['Tanggal:', dateDisplay]);
+            excelData.push([]);
+            excelData.push(['No', 'Nama Bahan Baku', 'Order', 'Masuk', 'Satuan', 'Merk', 'Keterangan']);
+
+            rows.forEach(row => {
+                const inputs = row.querySelectorAll('input, select');
+                const no = row.querySelector('.row-number') ? row.querySelector('.row-number').innerText : '';
+                const nama = inputs[0] ? inputs[0].value : '';
+                const order = inputs[1] ? inputs[1].value : '';
+                const masuk = inputs[2] ? inputs[2].value : '';
+                const satuan = inputs[3] ? inputs[3].value : '';
+                const merk = inputs[4] ? inputs[4].value : '';
+                const ket = inputs[5] ? inputs[5].value : '';
+
+                if (nama) {
+                    excelData.push([no, nama, Number(order) || 0, Number(masuk) || 0, satuan, merk, ket]);
+                }
+            });
+
+            const worksheet = XLSX.utils.aoa_to_sheet(excelData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Penerimaan Bahan Baku');
+
+            worksheet['!cols'] = [
+                { wch: 6 },  
+                { wch: 25 }, 
+                { wch: 10 }, 
+                { wch: 10 }, 
+                { wch: 10 }, 
+                { wch: 18 }, 
+                { wch: 25 }  
+            ];
+
+            XLSX.writeFile(workbook, `Penerimaan_Bahan_Baku_${dateStr}.xlsx`);
+        };
+
+        window.onload = function() {
+            if (sessionStorage.getItem('isLoggedIn') === 'true') {
+                showMainApp();
+            }
+        };
+    </script>
+</body>
+</html>
