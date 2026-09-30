@@ -2,7 +2,8 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Memaksa tampilan mode desktop di semua perangkat (HP/Laptop) -->
+    <meta name="viewport" content="width=1280, initial-scale=1.0">
     <title>Form Penerimaan Bahan Baku</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -23,6 +24,7 @@
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f3f4f6;
+            min-width: 1280px; /* Mencegah elemen berantakan pada layar kecil */
         }
 
         .swal2-popup {
@@ -38,6 +40,7 @@
                 background-color: #ffffff !important;
                 color: #000000 !important;
                 padding: 0 !important;
+                min-width: 100% !important;
             }
             .print-container {
                 box-shadow: none !important;
@@ -265,7 +268,7 @@
                 </div>
 
                 <div class="flex justify-end pt-2 border-t">
-                    <button type="submit" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 shadow-md">
+                    <button type="submit" id="btnSubmitItem" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 shadow-md">
                         <i class="fa-solid fa-plus"></i> Tambah ke Tabel
                     </button>
                 </div>
@@ -444,6 +447,7 @@
         // Menyimpan data foto sementara pada Form Input Satu per Satu
         let tempFormPhotos = [];
         let tempFormFileIds = [];
+        let isUploadingPhoto = false; // Flag untuk mengecek apakah foto sedang proses diunggah
 
         function updateNextNoUrut() {
             const tbody = document.getElementById('tableBody');
@@ -685,6 +689,9 @@
             namaBarang = namaBarang.replace(/[^a-zA-Z0-9_-]/g, '_');
             const dateVal = document.getElementById('inputDate').value || getFormattedToday();
 
+            isUploadingPhoto = true;
+            updateSubmitButtonState();
+
             for (let index = 0; index < files.length; index++) {
                 const file = files[index];
                 if (!file.type.startsWith('image/')) continue;
@@ -701,36 +708,51 @@
                 const fileExt = file.name.split('.').pop() || 'jpg';
                 const customFileName = `${namaBarang}_${dateVal}_${Date.now()}_${index + 1}.${fileExt}`;
 
-                (async () => {
-                    try {
-                        const base64Data = await new Promise((resolve) => {
-                            const reader = new FileReader();
-                            reader.onload = e => resolve(e.target.result);
-                            reader.readAsDataURL(file);
-                        });
+                try {
+                    const base64Data = await new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onload = e => resolve(e.target.result);
+                        reader.readAsDataURL(file);
+                    });
 
-                        const response = await fetch(GAS_WEB_APP_URL, {
-                            method: "POST",
-                            body: JSON.stringify({
-                                image: base64Data,
-                                fileName: customFileName
-                            })
-                        });
+                    const response = await fetch(GAS_WEB_APP_URL, {
+                        method: "POST",
+                        body: JSON.stringify({
+                            image: base64Data,
+                            fileName: customFileName
+                        })
+                    });
 
-                        const result = await response.json();
-                        if (result.status === "success") {
-                            tempFormPhotos[itemIndex] = result.downloadUrl;
-                            tempFormFileIds[itemIndex] = result.fileId;
-                            renderFormPhotoPreviews();
-                        }
-                    } catch (err) {
-                        console.error("Gagal unggah foto:", err);
+                    const result = await response.json();
+                    if (result.status === "success") {
+                        tempFormPhotos[itemIndex] = result.downloadUrl;
+                        tempFormFileIds[itemIndex] = result.fileId;
+                        renderFormPhotoPreviews();
                     }
-                })();
+                } catch (err) {
+                    console.error("Gagal unggah foto:", err);
+                }
             }
 
+            isUploadingPhoto = false;
+            updateSubmitButtonState();
             input.value = '';
         };
+
+        function updateSubmitButtonState() {
+            const btnSubmit = document.getElementById('btnSubmitItem');
+            if (!btnSubmit) return;
+
+            if (isUploadingPhoto) {
+                btnSubmit.disabled = true;
+                btnSubmit.classList.add('opacity-50', 'cursor-not-allowed');
+                btnSubmit.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Mengunggah Foto...`;
+            } else {
+                btnSubmit.disabled = false;
+                btnSubmit.classList.remove('opacity-50', 'cursor-not-allowed');
+                btnSubmit.innerHTML = `<i class="fa-solid fa-plus"></i> Tambah ke Tabel`;
+            }
+        }
 
         function renderFormPhotoPreviews() {
             const container = document.getElementById('formPhotoPreview');
@@ -775,6 +797,11 @@
         window.submitSingleInputItem = function(e) {
             e.preventDefault();
 
+            if (isUploadingPhoto) {
+                showToast('warning', 'Harap tunggu, foto sedang dalam proses unggah ke server!');
+                return;
+            }
+
             const nama = document.getElementById('inputNamaBahan').value.trim();
             const order = document.getElementById('inputOrder').value;
             const masuk = document.getElementById('inputMasuk').value;
@@ -787,11 +814,11 @@
                 return;
             }
 
-            // VALIDASI WAJIB UNGGAH FOTO
-            if (!tempFormPhotos || tempFormPhotos.length === 0) {
+            // VALIDASI WAJIB UNGGAH FOTO & SELESAI TERUNGGAH (TIDAK ADA BLOB LOCAL)
+            if (!tempFormPhotos || tempFormPhotos.length === 0 || tempFormPhotos.some(url => url.startsWith('blob:'))) {
                 Swal.fire({
-                    title: 'Foto Wajib Diunggah!',
-                    text: 'Anda harus mengunggah foto barang sebelum menambahkan item ke tabel.',
+                    title: 'Foto Belum Siap!',
+                    text: 'Pastikan Anda sudah mengunggah foto dan proses unggah ke server benar-benar selesai (tidak ada ikon loading) sebelum klik tambah.',
                     icon: 'warning',
                     confirmButtonColor: '#4f46e5',
                     confirmButtonText: 'Mengerti'
@@ -937,35 +964,33 @@
                 const fileExt = file.name.split('.').pop() || 'jpg';
                 const customFileName = `${namaBarang}_${dateVal}_${Date.now()}_${index + 1}.${fileExt}`;
 
-                (async () => {
-                    try {
-                        const base64Data = await new Promise((resolve) => {
-                            const reader = new FileReader();
-                            reader.onload = e => resolve(e.target.result);
-                            reader.readAsDataURL(file);
-                        });
+                try {
+                    const base64Data = await new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onload = e => resolve(e.target.result);
+                        reader.readAsDataURL(file);
+                    });
 
-                        const response = await fetch(GAS_WEB_APP_URL, {
-                            method: "POST",
-                            body: JSON.stringify({
-                                image: base64Data,
-                                fileName: customFileName
-                            })
-                        });
+                    const response = await fetch(GAS_WEB_APP_URL, {
+                        method: "POST",
+                        body: JSON.stringify({
+                            image: base64Data,
+                            fileName: customFileName
+                        })
+                    });
 
-                        const result = await response.json();
-                        if (result.status === "success") {
-                            photoUrls[itemIndex] = result.downloadUrl;
-                            fileIds[itemIndex] = result.fileId;
+                    const result = await response.json();
+                    if (result.status === "success") {
+                        photoUrls[itemIndex] = result.downloadUrl;
+                        fileIds[itemIndex] = result.fileId;
 
-                            photoDataInput.value = JSON.stringify(photoUrls);
-                            fileIdInput.value = JSON.stringify(fileIds);
-                            renderPhotoPreviews(container, photoUrls, fileIds);
-                        }
-                    } catch (err) {
-                        console.error("Gagal unggah foto:", err);
+                        photoDataInput.value = JSON.stringify(photoUrls);
+                        fileIdInput.value = JSON.stringify(fileIds);
+                        renderPhotoPreviews(container, photoUrls, fileIds);
                     }
-                })();
+                } catch (err) {
+                    console.error("Gagal unggah foto:", err);
+                }
             }
 
             input.value = '';
@@ -1174,11 +1199,17 @@
             const rows = document.querySelectorAll('#tableBody tr');
             const dataToSave = [];
 
-            rows.forEach((row) => {
+            for (const row of rows) {
                 let photoData = [];
                 let fileIdData = [];
                 try { photoData = JSON.parse(row.querySelector('.photo-data').value || "[]"); } catch(e){}
                 try { fileIdData = JSON.parse(row.querySelector('.drive-file-id').value || "[]"); } catch(e){}
+
+                // Validasi bahwa tidak ada baris yang fotonya masih berstatus blob (belum sukses upload)
+                if (photoData.some(url => url.startsWith('blob:'))) {
+                    showToast('error', 'Ada foto pada tabel yang belum selesai diunggah. Harap tunggu sebentar.');
+                    return;
+                }
 
                 const inputs = row.querySelectorAll('input:not(.photo-data):not(.photo-input-camera):not(.photo-input-gallery):not(.drive-file-id), select');
                 const nama = inputs[0] ? inputs[0].value.trim() : '';
@@ -1191,7 +1222,7 @@
                 if (nama || photoData.length > 0) {
                     dataToSave.push({ nama, order, masuk, satuan, merk, ket, photo: photoData, fileId: fileIdData });
                 }
-            });
+            }
 
             if (window.saveDataToFirebase) {
                 await window.saveDataToFirebase(dateKey, dataToSave);
