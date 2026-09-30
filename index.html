@@ -769,7 +769,7 @@ try { fileIds = JSON.parse(fileIdInput.value || "[]"); } catch(e) { fileIds = []
 
 if (!row._rawFiles) row._rawFiles = [];
 
-files.forEach(file) => {
+files.forEach(file => {
 if (!file.type.startsWith('image/')) return;
 const localUrl = URL.createObjectURL(file);
 row._rawFiles.push(file);
@@ -1217,11 +1217,11 @@ showToast('info', 'Tabel berhasil dikosongkan');
 function checkHasUnsavedData() {
 const rows = document.querySelectorAll('#tableBody tr');
 for (const row of rows) {
-if (row._rawFiles && row._rawFiles.length > 0) return true; // Ada foto belum diunggah
+if (row._rawFiles && row._rawFiles.length > 0) return true;
 let photoData = [];
 try { photoData = JSON.parse(row.querySelector('.photo-data').value || "[]"); } catch(e){}
 for (const url of photoData) {
-if (url.startsWith('blob:')) return true; // Ada gambar lokal belum di-upload ke server
+if (url.startsWith('blob:')) return true;
 }
 }
 return false;
@@ -1329,7 +1329,6 @@ showToast('warning', 'Tidak ada data untuk diunduh.');
 return;
 }
 
-// Cek dan Simpan otomatis ke sistem terlebih dahulu
 const isReady = await ensureDataSavedBeforeExport();
 if (!isReady) return;
 
@@ -1383,7 +1382,6 @@ showToast('warning', 'Tidak ada data untuk diunduh.');
 return;
 }
 
-// Cek dan Simpan otomatis ke sistem terlebih dahulu
 const isReady = await ensureDataSavedBeforeExport();
 if (!isReady) return;
 
@@ -1430,7 +1428,6 @@ showToast('warning', 'Tidak ada data untuk diunduh.');
 return;
 }
 
-// Cek dan Simpan otomatis ke sistem terlebih dahulu
 const isReady = await ensureDataSavedBeforeExport();
 if (!isReady) return;
 
