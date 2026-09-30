@@ -929,6 +929,18 @@ return;
 }
 
 const row = btn.closest('tr');
+
+Swal.fire({
+title: 'Hapus Baris Ini?',
+text: "Data bahan baku pada baris ini akan dihapus!",
+icon: 'warning',
+showCancelButton: true,
+confirmButtonColor: '#d33',
+cancelButtonColor: '#3085d6',
+confirmButtonText: 'Ya, Hapus',
+cancelButtonText: 'Batal'
+}).then(async (result) => {
+if (result.isConfirmed) {
 const fileIdInput = row.querySelector('.drive-file-id');
 let fileIds = [];
 try { fileIds = JSON.parse(fileIdInput.value || "[]"); } catch(e) { fileIds = []; }
@@ -948,6 +960,9 @@ console.error("Gagal hapus foto:", err);
 
 row.remove();
 reindexRows();
+showToast('success', 'Baris berhasil dihapus');
+}
+});
 };
 
 function reindexRows() {
@@ -1266,6 +1281,13 @@ showToast('warning', 'Tidak ada data untuk diunduh.');
 return;
 }
 
+Swal.fire({
+title: 'Menyiapkan Berkas PNG...',
+text: 'Sedang memproses dan mengunduh gambar.',
+allowOutsideClick: false,
+didOpen: () => { Swal.showLoading(); }
+});
+
 const dateSuffix = getExportDateSuffix();
 const filename = `Penerimaan_Bahan_Baku_${dateSuffix}.png`;
 const element = document.getElementById('formContent');
@@ -1281,6 +1303,7 @@ ignoreElements: (el) => el.classList.contains('no-print')
 restoreInputs(replaced);
 
 canvas.toBlob((blob) => {
+Swal.close();
 if (blob) {
 triggerAutoDownload(blob, filename);
 showToast('success', 'File PNG tersimpan!');
@@ -1288,6 +1311,7 @@ showToast('success', 'File PNG tersimpan!');
 }, 'image/png');
 } catch(e) {
 restoreInputs(replaced);
+Swal.close();
 showToast('error', 'Gagal membuat PNG: ' + e.message);
 }
 };
@@ -1298,6 +1322,13 @@ if (rows.length === 0) {
 showToast('warning', 'Tidak ada data untuk diunduh.');
 return;
 }
+
+Swal.fire({
+title: 'Menyiapkan Dokumen PDF...',
+text: 'Sedang menggenerasi PDF dan mendownload secara otomatis.',
+allowOutsideClick: false,
+didOpen: () => { Swal.showLoading(); }
+});
 
 const dateSuffix = getExportDateSuffix();
 const filename = `Penerimaan_Bahan_Baku_${dateSuffix}.pdf`;
@@ -1315,6 +1346,7 @@ jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
 try {
 const pdfBlob = await html2pdf().set(opt).from(element).outputPdf('blob');
 restoreInputs(replaced);
+Swal.close();
 
 if (pdfBlob) {
 triggerAutoDownload(pdfBlob, filename);
@@ -1322,6 +1354,7 @@ showToast('success', 'File PDF tersimpan!');
 }
 } catch(e) {
 restoreInputs(replaced);
+Swal.close();
 showToast('error', 'Gagal membuat PDF: ' + e.message);
 }
 };
@@ -1333,6 +1366,14 @@ showToast('warning', 'Tidak ada data untuk diunduh.');
 return;
 }
 
+Swal.fire({
+title: 'Menyiapkan Berkas Excel...',
+text: 'Sedang menyusun data Excel...',
+allowOutsideClick: false,
+didOpen: () => { Swal.showLoading(); }
+});
+
+setTimeout(() => {
 const dateSuffix = getExportDateSuffix();
 const filename = `Penerimaan_Bahan_Baku_${dateSuffix}.xlsx`;
 const dateDisplay = document.getElementById('displayHariTanggal').innerText;
@@ -1371,7 +1412,9 @@ worksheet['!cols'] = [
 ];
 
 XLSX.writeFile(workbook, filename);
+Swal.close();
 showToast('success', 'File Excel tersimpan!');
+}, 300);
 };
 
 window.onload = function() {
