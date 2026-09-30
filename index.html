@@ -396,7 +396,7 @@
             const u = document.getElementById('loginUsername').value;
             const p = document.getElementById('loginPassword').value;
 
-            if (u === 'Aslap' && p === 'Aslap123') {
+            if (u === 'Fajar' && p === 'Aslap123') {
                 sessionStorage.setItem('isLoggedIn', 'true');
                 showMainApp();
                 showToast('success', 'Berhasil masuk ke sistem');
@@ -603,6 +603,9 @@
 
             photoDataInput.value = JSON.stringify(photoUrls);
             fileIdInput.value = JSON.stringify(fileIds);
+
+            // Bersihkan sorotan merah jika foto berhasil diunggah
+            row.classList.remove('bg-red-50', 'border-red-300');
 
             renderPhotoPreviews(container, photoUrls, fileIds);
             input.value = '';
@@ -838,6 +841,7 @@
             });
         }
 
+        // SIMPAN DATA DENGAN VALIDASI WAJIB UNGGAH FOTO
         window.saveCurrentData = async function() {
             const dateKey = document.getElementById('inputDate').value;
             if (!dateKey) {
@@ -847,26 +851,59 @@
 
             const rows = document.querySelectorAll('#tableBody tr');
             const dataToSave = [];
+            let hasError = false;
+            let missingPhotoItems = [];
 
-            rows.forEach(row => {
+            rows.forEach((row, index) => {
                 let photoData = [];
                 let fileIdData = [];
                 try { photoData = JSON.parse(row.querySelector('.photo-data').value || "[]"); } catch(e){}
                 try { fileIdData = JSON.parse(row.querySelector('.drive-file-id').value || "[]"); } catch(e){}
 
                 const inputs = row.querySelectorAll('input:not(.photo-data):not(.photo-input):not(.drive-file-id), select');
-                const nama = inputs[0] ? inputs[0].value : '';
+                const nama = inputs[0] ? inputs[0].value.trim() : '';
                 const order = inputs[1] ? inputs[1].value : '';
                 const masuk = inputs[2] ? inputs[2].value : '';
                 const satuan = inputs[3] ? inputs[3].value : '';
                 const merk = inputs[4] ? inputs[4].value : '';
                 const ket = inputs[5] ? inputs[5].value : '';
 
-                if (nama || photoData.length > 0) {
-                    dataToSave.push({ nama, order, masuk, satuan, merk, ket, photo: photoData, fileId: fileIdData });
+                // Cek jika baris diisi
+                const isRowFilled = nama !== '' || order !== '' || masuk !== '' || merk !== '' || ket !== '';
+
+                if (isRowFilled) {
+                    // Validasi: Wajib ada minimal 1 foto
+                    if (photoData.length === 0) {
+                        hasError = true;
+                        const itemLabel = nama ? `"${nama}" (Baris ${index + 1})` : `Baris ${index + 1}`;
+                        missingPhotoItems.push(itemLabel);
+                        
+                        // Tandai baris yang belum ada foto dengan warna merah
+                        row.classList.add('bg-red-50', 'border-red-300');
+                    } else {
+                        row.classList.remove('bg-red-50', 'border-red-300');
+                        dataToSave.push({ nama, order, masuk, satuan, merk, ket, photo: photoData, fileId: fileIdData });
+                    }
                 }
             });
 
+            if (dataToSave.length === 0 && !hasError) {
+                showToast('warning', 'Tidak ada data barang yang diisi untuk disimpan.');
+                return;
+            }
+
+            // Tampilkan alert error jika ada barang belum diunggah fotonya
+            if (hasError) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Foto Wajib Diunggah!',
+                    html: `Beberapa barang belum memiliki foto bukti penerimaan:<br><br><strong class="text-red-600">${missingPhotoItems.join('<br>')}</strong><br><br>Silakan unggah foto terlebih dahulu sebelum menyimpan.`,
+                    confirmButtonColor: '#4f46e5'
+                });
+                return;
+            }
+
+            // Simpan ke Firebase jika semua validasi terpenuhi
             if (window.saveDataToFirebase) {
                 await window.saveDataToFirebase(dateKey, dataToSave);
             }
