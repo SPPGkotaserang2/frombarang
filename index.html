@@ -1212,7 +1212,7 @@ showToast('info', 'Tabel berhasil dikosongkan');
 });
 };
 
-/* --- LOGIKA EKSPOR LANGSUNG & OTOMATIS --- */
+/* --- LOGIKA EKSPOR OPTIMAL & KILAT --- */
 
 function replaceInputsWithText(element) {
 const inputs = element.querySelectorAll('input:not(.photo-data):not(.photo-input-camera):not(.photo-input-gallery):not(.drive-file-id), select');
@@ -1257,23 +1257,7 @@ return `${start}_sd_${end}`;
 return document.getElementById('inputDate').value || getFormattedToday();
 }
 
-// FUNGSI TRIGGER UNDUH OTOMATIS
-function triggerAutoDownload(blob, fileName) {
-const url = URL.createObjectURL(blob);
-const link = document.createElement('a');
-link.style.display = 'none';
-link.href = url;
-link.download = fileName;
-
-document.body.appendChild(link);
-link.click();
-
-setTimeout(() => {
-document.body.removeChild(link);
-URL.revokeObjectURL(url);
-}, 200);
-}
-
+// OPTIMALISASI KILAT EKSPOR PNG
 window.downloadPNGDirect = async function() {
 const rows = document.querySelectorAll('#tableBody tr');
 if (rows.length === 0) {
@@ -1282,12 +1266,13 @@ return;
 }
 
 Swal.fire({
-title: 'Menyiapkan Berkas PNG...',
-text: 'Sedang memproses dan mengunduh gambar.',
+title: 'Menyiapkan PNG...',
+text: 'Sedang mengunduh berkas...',
 allowOutsideClick: false,
 didOpen: () => { Swal.showLoading(); }
 });
 
+setTimeout(async () => {
 const dateSuffix = getExportDateSuffix();
 const filename = `Penerimaan_Bahan_Baku_${dateSuffix}.png`;
 const element = document.getElementById('formContent');
@@ -1295,27 +1280,33 @@ const replaced = replaceInputsWithText(element);
 
 try {
 const canvas = await html2canvas(element, {
-scale: 1.5,
-useCORS: true,
+scale: 1,
+useCORS: false,
+allowTaint: true,
 backgroundColor: '#ffffff',
 ignoreElements: (el) => el.classList.contains('no-print')
 });
+
 restoreInputs(replaced);
 
-canvas.toBlob((blob) => {
+const link = document.createElement('a');
+link.download = filename;
+link.href = canvas.toDataURL('image/png');
+document.body.appendChild(link);
+link.click();
+document.body.removeChild(link);
+
 Swal.close();
-if (blob) {
-triggerAutoDownload(blob, filename);
 showToast('success', 'File PNG tersimpan!');
-}
-}, 'image/png');
 } catch(e) {
 restoreInputs(replaced);
 Swal.close();
 showToast('error', 'Gagal membuat PNG: ' + e.message);
 }
+}, 100);
 };
 
+// OPTIMALISASI KILAT EKSPOR PDF
 window.downloadPDFDirect = async function() {
 const rows = document.querySelectorAll('#tableBody tr');
 if (rows.length === 0) {
@@ -1324,41 +1315,39 @@ return;
 }
 
 Swal.fire({
-title: 'Menyiapkan Dokumen PDF...',
-text: 'Sedang menggenerasi PDF dan mendownload secara otomatis.',
+title: 'Menyiapkan PDF...',
+text: 'Sedang mengunduh berkas...',
 allowOutsideClick: false,
 didOpen: () => { Swal.showLoading(); }
 });
 
+setTimeout(() => {
 const dateSuffix = getExportDateSuffix();
 const filename = `Penerimaan_Bahan_Baku_${dateSuffix}.pdf`;
 const element = document.getElementById('formContent');
 const replaced = replaceInputsWithText(element);
 
 const opt = {
-margin: [10, 10, 10, 10],
+margin: [5, 5, 5, 5],
 filename: filename,
-image: { type: 'jpeg', quality: 0.95 },
-html2canvas: { scale: 1.5, useCORS: true, ignoreElements: (el) => el.classList.contains('no-print') },
+image: { type: 'jpeg', quality: 0.8 },
+html2canvas: { scale: 1, useCORS: false, allowTaint: true, ignoreElements: (el) => el.classList.contains('no-print') },
 jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
 };
 
-try {
-const pdfBlob = await html2pdf().set(opt).from(element).outputPdf('blob');
+html2pdf().set(opt).from(element).save().then(() => {
 restoreInputs(replaced);
 Swal.close();
-
-if (pdfBlob) {
-triggerAutoDownload(pdfBlob, filename);
 showToast('success', 'File PDF tersimpan!');
-}
-} catch(e) {
+}).catch((err) => {
 restoreInputs(replaced);
 Swal.close();
-showToast('error', 'Gagal membuat PDF: ' + e.message);
-}
+showToast('error', 'Gagal membuat PDF: ' + err.message);
+});
+}, 100);
 };
 
+// OPTIMALISASI KILAT EKSPOR EXCEL
 window.downloadExcelDirect = function() {
 const rows = document.querySelectorAll('#tableBody tr');
 if (rows.length === 0) {
@@ -1366,14 +1355,6 @@ showToast('warning', 'Tidak ada data untuk diunduh.');
 return;
 }
 
-Swal.fire({
-title: 'Menyiapkan Berkas Excel...',
-text: 'Sedang menyusun data Excel...',
-allowOutsideClick: false,
-didOpen: () => { Swal.showLoading(); }
-});
-
-setTimeout(() => {
 const dateSuffix = getExportDateSuffix();
 const filename = `Penerimaan_Bahan_Baku_${dateSuffix}.xlsx`;
 const dateDisplay = document.getElementById('displayHariTanggal').innerText;
@@ -1412,9 +1393,7 @@ worksheet['!cols'] = [
 ];
 
 XLSX.writeFile(workbook, filename);
-Swal.close();
 showToast('success', 'File Excel tersimpan!');
-}, 300);
 };
 
 window.onload = function() {
