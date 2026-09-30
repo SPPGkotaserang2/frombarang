@@ -769,7 +769,7 @@ try { fileIds = JSON.parse(fileIdInput.value || "[]"); } catch(e) { fileIds = []
 
 if (!row._rawFiles) row._rawFiles = [];
 
-files.forEach(file => {
+files.forEach(file) => {
 if (!file.type.startsWith('image/')) return;
 const localUrl = URL.createObjectURL(file);
 row._rawFiles.push(file);
@@ -1212,7 +1212,28 @@ showToast('info', 'Tabel berhasil dikosongkan');
 });
 };
 
-/* --- LOGIKA EKSPOR OPTIMAL & KILAT --- */
+/* --- LOGIKA CEK & SIMPAN OTOMATIS SEBELUM EKSPOR --- */
+
+function checkHasUnsavedData() {
+const rows = document.querySelectorAll('#tableBody tr');
+for (const row of rows) {
+if (row._rawFiles && row._rawFiles.length > 0) return true; // Ada foto belum diunggah
+let photoData = [];
+try { photoData = JSON.parse(row.querySelector('.photo-data').value || "[]"); } catch(e){}
+for (const url of photoData) {
+if (url.startsWith('blob:')) return true; // Ada gambar lokal belum di-upload ke server
+}
+}
+return false;
+}
+
+async function ensureDataSavedBeforeExport() {
+if (checkHasUnsavedData()) {
+const saved = await saveCurrentData();
+if (!saved) return false;
+}
+return true;
+}
 
 function replaceInputsWithText(element) {
 const inputs = element.querySelectorAll('input:not(.photo-data):not(.photo-input-camera):not(.photo-input-gallery):not(.drive-file-id), select');
@@ -1257,13 +1278,60 @@ return `${start}_sd_${end}`;
 return document.getElementById('inputDate').value || getFormattedToday();
 }
 
-// OPTIMALISASI KILAT EKSPOR PNG
+async function sanitizeImagesForCapture(container) {
+const imgs = container.querySelectorAll('img');
+const restoredData = [];
+
+for (const img of imgs) {
+const originalSrc = img.src;
+restoredData.push({ img, originalSrc });
+
+if (originalSrc.startsWith('data:')) continue;
+
+try {
+const response = await fetch(originalSrc, { mode: 'cors' });
+const blob = await response.blob();
+const base64 = await new Promise((resolve) => {
+const reader = new FileReader();
+reader.onloadend = () => resolve(reader.result);
+reader.readAsDataURL(blob);
+});
+img.src = base64;
+} catch (e) {
+img.style.display = 'none';
+const span = document.createElement('span');
+span.className = 'text-[10px] text-gray-400 block temp-photo-text';
+span.innerText = '[Foto Ada]';
+img.parentNode.appendChild(span);
+}
+}
+
+return restoredData;
+}
+
+function restoreImagesAfterCapture(restoredData) {
+restoredData.forEach(({ img, originalSrc }) => {
+img.src = originalSrc;
+img.style.display = '';
+const parent = img.parentNode;
+if (parent) {
+const tempTexts = parent.querySelectorAll('.temp-photo-text');
+tempTexts.forEach(t => t.remove());
+}
+});
+}
+
+// EKSPOR PNG
 window.downloadPNGDirect = async function() {
 const rows = document.querySelectorAll('#tableBody tr');
 if (rows.length === 0) {
 showToast('warning', 'Tidak ada data untuk diunduh.');
 return;
 }
+
+// Cek dan Simpan otomatis ke sistem terlebih dahulu
+const isReady = await ensureDataSavedBeforeExport();
+if (!isReady) return;
 
 Swal.fire({
 title: 'Menyiapkan PNG...',
@@ -1272,21 +1340,22 @@ allowOutsideClick: false,
 didOpen: () => { Swal.showLoading(); }
 });
 
-setTimeout(async () => {
 const dateSuffix = getExportDateSuffix();
 const filename = `Penerimaan_Bahan_Baku_${dateSuffix}.png`;
 const element = document.getElementById('formContent');
 const replaced = replaceInputsWithText(element);
+const restoredImgs = await sanitizeImagesForCapture(element);
 
 try {
 const canvas = await html2canvas(element, {
-scale: 1,
-useCORS: false,
-allowTaint: true,
+scale: 1.2,
+useCORS: true,
+allowTaint: false,
 backgroundColor: '#ffffff',
 ignoreElements: (el) => el.classList.contains('no-print')
 });
 
+restoreImagesAfterCapture(restoredImgs);
 restoreInputs(replaced);
 
 const link = document.createElement('a');
@@ -1299,20 +1368,24 @@ document.body.removeChild(link);
 Swal.close();
 showToast('success', 'File PNG tersimpan!');
 } catch(e) {
+restoreImagesAfterCapture(restoredImgs);
 restoreInputs(replaced);
 Swal.close();
 showToast('error', 'Gagal membuat PNG: ' + e.message);
 }
-}, 100);
 };
 
-// OPTIMALISASI KILAT EKSPOR PDF
+// EKSPOR PDF
 window.downloadPDFDirect = async function() {
 const rows = document.querySelectorAll('#tableBody tr');
 if (rows.length === 0) {
 showToast('warning', 'Tidak ada data untuk diunduh.');
 return;
 }
+
+// Cek dan Simpan otomatis ke sistem terlebih dahulu
+const isReady = await ensureDataSavedBeforeExport();
+if (!isReady) return;
 
 Swal.fire({
 title: 'Menyiapkan PDF...',
@@ -1321,39 +1394,45 @@ allowOutsideClick: false,
 didOpen: () => { Swal.showLoading(); }
 });
 
-setTimeout(() => {
 const dateSuffix = getExportDateSuffix();
 const filename = `Penerimaan_Bahan_Baku_${dateSuffix}.pdf`;
 const element = document.getElementById('formContent');
 const replaced = replaceInputsWithText(element);
+const restoredImgs = await sanitizeImagesForCapture(element);
 
 const opt = {
 margin: [5, 5, 5, 5],
 filename: filename,
 image: { type: 'jpeg', quality: 0.8 },
-html2canvas: { scale: 1, useCORS: false, allowTaint: true, ignoreElements: (el) => el.classList.contains('no-print') },
+html2canvas: { scale: 1.2, useCORS: true, allowTaint: false, ignoreElements: (el) => el.classList.contains('no-print') },
 jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
 };
 
-html2pdf().set(opt).from(element).save().then(() => {
+try {
+await html2pdf().set(opt).from(element).save();
+restoreImagesAfterCapture(restoredImgs);
 restoreInputs(replaced);
 Swal.close();
 showToast('success', 'File PDF tersimpan!');
-}).catch((err) => {
+} catch(err) {
+restoreImagesAfterCapture(restoredImgs);
 restoreInputs(replaced);
 Swal.close();
 showToast('error', 'Gagal membuat PDF: ' + err.message);
-});
-}, 100);
+}
 };
 
-// OPTIMALISASI KILAT EKSPOR EXCEL
-window.downloadExcelDirect = function() {
+// EKSPOR EXCEL
+window.downloadExcelDirect = async function() {
 const rows = document.querySelectorAll('#tableBody tr');
 if (rows.length === 0) {
 showToast('warning', 'Tidak ada data untuk diunduh.');
 return;
 }
+
+// Cek dan Simpan otomatis ke sistem terlebih dahulu
+const isReady = await ensureDataSavedBeforeExport();
+if (!isReady) return;
 
 const dateSuffix = getExportDateSuffix();
 const filename = `Penerimaan_Bahan_Baku_${dateSuffix}.xlsx`;
