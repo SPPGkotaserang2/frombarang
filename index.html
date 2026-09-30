@@ -74,6 +74,25 @@
 </head>
 <body class="py-8 px-4 sm:px-6 lg:px-8 min-h-screen">
 
+    <!-- SCREEN JIKA LOKASI DITOLAK / DILUAR JANGKAUAN -->
+    <div id="locationErrorScreen" class="fixed inset-0 bg-red-950 z-50 hidden flex items-center justify-center p-4 text-center">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full border border-red-200">
+            <div class="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center text-red-600 text-2xl">
+                <i class="fa-solid fa-location-dot-slash"></i>
+            </div>
+            <h2 class="text-xl font-bold text-gray-800 mb-2">Akses Ditolak</h2>
+            <p class="text-sm text-red-600 font-semibold mb-4">
+                mohon maaf anda tidak ada di lokasi dapur SPPG KOTA SERANG SERANG SERANG 2
+            </p>
+            <p class="text-xs text-gray-500 mb-6">
+                Aplikasi ini hanya dapat diakses saat berada di lokasi resmi yang ditentukan. Pastikan GPS/Lokasi perangkat Anda aktif.
+            </p>
+            <button onclick="checkLocation()" class="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors text-sm">
+                Cek Ulang Lokasi Saya
+            </button>
+        </div>
+    </div>
+
     <!-- HALAMAN LOGIN -->
     <div id="loginScreen" class="fixed inset-0 bg-slate-900 z-50 flex items-center justify-center p-4">
         <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full border border-gray-100">
@@ -82,7 +101,7 @@
                     <img src="logo.png" alt="Logo Sistem" class="max-w-full max-h-full object-contain" onerror="this.src='https://via.placeholder.com/80?text=LOGO'">
                 </div>
                 <h2 class="text-2xl font-bold text-gray-800">Login Sistem</h2>
-                <p class="text-xs text-gray-500 mt-1">Masukkan akun Admin untuk melanjutkan</p>
+                <p class="text-xs text-gray-500 mt-1">Masukkan akun User atau Admin untuk melanjutkan</p>
             </div>
 
             <form onsubmit="handleLogin(event)" class="space-y-4">
@@ -128,17 +147,19 @@
             <div class="flex flex-wrap justify-between items-center gap-4 border-b pb-4">
                 <div>
                     <h1 class="text-xl font-bold text-gray-800">Sistem Penerimaan Bahan Baku</h1>
-                    <p class="text-xs text-gray-500">Kelola, simpan terpusat, dan ekspor data.</p>
+                    <p class="text-xs text-gray-500">
+                        Status Akses: <span id="userRoleBadge" class="font-bold text-indigo-600 uppercase"></span>
+                    </p>
                 </div>
                 <div class="flex items-center gap-2 flex-wrap">
-                    <button onclick="openArchiveModal()" class="px-3 py-2 text-sm font-medium text-amber-800 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors flex items-center gap-2 border border-amber-200">
-                        <i class="fa-solid fa-box-archive"></i> Lihat Data Arsip
-                    </button>
-                    <button onclick="openMasterModal()" class="px-3 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors flex items-center gap-2 border border-slate-300">
+                    <button id="btnMasterBarang" onclick="openMasterModal()" class="px-3 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors flex items-center gap-2 border border-slate-300">
                         <i class="fa-solid fa-boxes-stacked"></i> Kelola Master Barang
                     </button>
                     <button onclick="saveCurrentData()" class="px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors flex items-center gap-2">
                         <i class="fa-solid fa-cloud-arrow-up"></i> Simpan ke Sistem
+                    </button>
+                    <button id="btnDeleteSavedData" onclick="deleteSavedDataFirebase()" class="px-3 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors flex items-center gap-2 hidden">
+                        <i class="fa-solid fa-trash-can"></i> Hapus Data Tersimpan
                     </button>
                     <button onclick="resetForm()" class="px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors flex items-center gap-2">
                         <i class="fa-solid fa-rotate-left"></i> Reset
@@ -185,7 +206,73 @@
             </div>
         </div>
 
-        <!-- Lembar Form Utama -->
+        <!-- FORM INPUT SATU PER SATU (NO-PRINT) -->
+        <div class="no-print bg-white p-6 rounded-xl shadow-md border border-gray-200 mb-6">
+            <h3 class="text-base font-bold text-gray-800 border-b pb-2 mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-file-circle-plus text-indigo-600"></i> Input Barang
+            </h3>
+            
+            <form onsubmit="submitSingleInputItem(event)" class="space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">No Urut</label>
+                        <input type="number" id="inputNo" readonly class="w-full p-2 bg-gray-100 border border-gray-300 rounded-lg text-sm text-center font-bold text-gray-600">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Nama Bahan Baku <span class="text-red-500">*</span></label>
+                        <input type="text" id="inputNamaBahan" list="masterItemsList" required placeholder="Cari / Ketik Nama Bahan" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Jumlah Order</label>
+                        <input type="number" min="0" step="any" id="inputOrder" placeholder="0" class="w-full p-2 border border-gray-300 rounded-lg text-sm text-center focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Jumlah Masuk</label>
+                        <input type="number" min="0" step="any" id="inputMasuk" placeholder="0" class="w-full p-2 border border-gray-300 rounded-lg text-sm text-center focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Satuan</label>
+                        <input type="text" id="inputSatuan" list="satuanList" placeholder="kg, pcs, liter..." class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Merk</label>
+                        <input type="text" id="inputMerk" placeholder="Merk bahan baku" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Keterangan</label>
+                        <input type="text" id="inputKeterangan" placeholder="Catatan tambahan" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <!-- Bagian Input Foto Wajib -->
+                <div class="border-t pt-3">
+                    <label class="block text-xs font-semibold text-gray-700 mb-2">
+                        Upload Foto Barang <span class="text-red-500 font-bold"></span>
+                    </label>
+                    <div class="flex flex-wrap items-center gap-3" id="singleFormPhotoContainer">
+                        <input type="file" accept="image/*" id="singleFormCamera" class="hidden" capture="environment" onchange="handleFormPhotoUpload(this)">
+                        <input type="file" accept="image/*" id="singleFormGallery" multiple class="hidden" onchange="handleFormPhotoUpload(this)">
+                        
+                        <button type="button" onclick="triggerFormPhotoUploadChoice()" class="px-4 py-2 border-2 border-dashed border-indigo-400 text-indigo-600 hover:bg-indigo-50 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+                            <i class="fa-solid fa-camera"></i> Unggah / Ambil Foto
+                        </button>
+
+                        <div id="formPhotoPreview" class="flex flex-wrap gap-2 items-center"></div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end pt-2 border-t">
+                    <button type="submit" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 shadow-md">
+                        <i class="fa-solid fa-plus"></i> Tambah ke Tabel
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Lembar Form Utama (Output / Print Area) -->
         <div id="formContent" class="print-container bg-white p-6 sm:p-10 rounded-xl shadow-md border border-gray-200">
             <div class="border-b-2 border-gray-800 pb-4 mb-6">
                 <div class="flex justify-between items-start gap-4">
@@ -206,7 +293,7 @@
                 <input type="date" id="inputDate" onchange="onDateInputChange(this.value)" class="input-print-border w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none">
             </div>
 
-            <!-- Tabel Penerimaan Bahan Baku -->
+            <!-- Tabel Penerimaan Bahan Baku (Format Pertahankan Sesuai Output) -->
             <div class="overflow-x-auto mb-6">
                 <table id="penerimaanTable" class="print-table w-full text-left border-collapse border border-gray-300 text-sm">
                     <thead>
@@ -227,8 +314,8 @@
             </div>
 
             <div class="mb-8 no-print flex flex-wrap gap-2">
-                <button onclick="addRow()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
-                    <i class="fa-solid fa-plus"></i> Tambah Baris
+                <button onclick="addRow()" class="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+                    <i class="fa-solid fa-plus"></i> Tambah Baris Kosong
                 </button>
             </div>
         </div>
@@ -263,26 +350,6 @@
         </div>
     </div>
 
-    <!-- Modal Data Arsip -->
-    <div id="archiveModal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4 no-print">
-        <div class="bg-white rounded-xl max-w-2xl w-full p-6 shadow-xl border border-gray-200">
-            <div class="flex justify-between items-center mb-4 border-b pb-3">
-                <h3 class="text-lg font-bold text-gray-800"><i class="fa-solid fa-box-archive text-amber-600 mr-2"></i>Data Arsip Penerimaan</h3>
-                <button onclick="closeArchiveModal()" class="text-gray-400 hover:text-gray-600 text-lg"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-
-            <p class="text-xs text-gray-500 mb-3">Klik pada salah satu tanggal di bawah untuk memuat data transaksi tersebut ke form utama.</p>
-
-            <div class="max-h-80 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100" id="archiveItemsContainer"></div>
-
-            <div class="mt-5 text-right">
-                <button onclick="closeArchiveModal()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-medium rounded-lg transition-colors">
-                    Tutup
-                </button>
-            </div>
-        </div>
-    </div>
-
     <!-- Modal Preview Gambar Foto -->
     <div id="imagePreviewModal" class="fixed inset-0 bg-black/70 hidden z-50 flex items-center justify-center p-4 no-print" onclick="closeImagePreview()">
         <div class="relative max-w-2xl w-full bg-white rounded-xl overflow-hidden shadow-2xl p-2" onclick="event.stopPropagation()">
@@ -296,7 +363,7 @@
     <!-- SCRIPT FIREBASE -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, doc, setDoc, getDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, deleteDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCOlHm2fFmClq9wpVcdcQ0Y_6OqFOnpvaM",
@@ -336,17 +403,14 @@
             }
         };
 
-        window.getAllArchivesFirebase = async function() {
+        window.deleteDataFromFirebase = async function(dateKey) {
             try {
-                const querySnapshot = await getDocs(collection(db, "penerimaan_barang"));
-                const results = [];
-                querySnapshot.forEach((docSnap) => {
-                    results.push(docSnap.data());
-                });
-                return results;
+                await deleteDoc(doc(db, "penerimaan_barang", dateKey));
+                return true;
             } catch (e) {
-                console.error("Error fetching archives: ", e);
-                return [];
+                console.error("Error deleting from Sistem : ", e);
+                showToast('error', "Gagal menghapus data: " + e.message);
+                return false;
             }
         };
 
@@ -372,6 +436,97 @@
     <script>
         const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyIZfCbN4ET9DxC0KOlFlFesI4muSbtMs0_DFjMQ-_JaQ0Bhc7udTOdDyWigVhJuYdkng/exec";
 
+        // TARGET KOORDINAT GEOLOKASI (SPPG D&D SERANG MANDIRI)
+        const TARGET_LAT = -6.1265918;
+        const TARGET_LNG = 106.1490035;
+        const MAX_DISTANCE_METERS = 200; // Radius toleransi (dalam meter)
+
+        // Menyimpan data foto sementara pada Form Input Satu per Satu
+        let tempFormPhotos = [];
+        let tempFormFileIds = [];
+
+        function updateNextNoUrut() {
+            const tbody = document.getElementById('tableBody');
+            const nextNo = tbody ? tbody.children.length + 1 : 1;
+            const inputNo = document.getElementById('inputNo');
+            if (inputNo) inputNo.value = nextNo;
+        }
+
+        // Helper untuk Mengonversi Link Foto Google Drive ke Direct Embed Link
+        function formatPhotoUrl(url) {
+            if (!url) return '';
+            if (url.includes('drive.google.com/file/d/')) {
+                const idMatch = url.match(/\/d\/([^\/\?]+)/);
+                if (idMatch && idMatch[1]) {
+                    return `https://lh3.googleusercontent.com/d/${idMatch[1]}`;
+                }
+            } else if (url.includes('drive.google.com/uc?')) {
+                const idMatch = url.match(/id=([^&]+)/);
+                if (idMatch && idMatch[1]) {
+                    return `https://lh3.googleusercontent.com/d/${idMatch[1]}`;
+                }
+            }
+            return url;
+        }
+
+        // Cek Hak Akses Hapus (Hanya Izinkan Jika Admin ATAU User pada Tanggal Hari Ini)
+        function canUserDelete() {
+            const role = sessionStorage.getItem('userRole') || 'user';
+            if (role === 'admin') return true;
+
+            const selectedDate = document.getElementById('inputDate').value;
+            const todayStr = getFormattedToday();
+            return selectedDate === todayStr;
+        }
+
+        // Hitung Jarak Menggunakan Haversine Formula
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371e3; // Radius bumi dalam meter
+            const rad = Math.PI / 180;
+            const dLat = (lat2 - lat1) * rad;
+            const dLon = (lon2 - lon1) * rad;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(lat1 * rad) * Math.cos(lat2 * rad) *
+                      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        }
+
+        function checkLocation() {
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const userLat = position.coords.latitude;
+                        const userLng = position.coords.longitude;
+                        const distance = calculateDistance(userLat, userLng, TARGET_LAT, TARGET_LNG);
+
+                        if (distance <= MAX_DISTANCE_METERS) {
+                            document.getElementById('locationErrorScreen').classList.add('hidden');
+                            if (sessionStorage.getItem('isLoggedIn') === 'true') {
+                                showMainApp();
+                            } else {
+                                document.getElementById('loginScreen').classList.remove('hidden');
+                            }
+                        } else {
+                            showLocationError();
+                        }
+                    },
+                    (error) => {
+                        showLocationError();
+                    },
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                );
+            } else {
+                showLocationError();
+            }
+        }
+
+        function showLocationError() {
+            document.getElementById('mainApp').classList.add('hidden');
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('locationErrorScreen').classList.remove('hidden');
+        }
+
         const Toast = Swal.mixin({
             toast: true,
             position: 'top-end',
@@ -385,21 +540,25 @@
         });
 
         function showToast(icon, title) {
-            Toast.fire({
-                icon: icon,
-                title: title
-            });
+            Toast.fire({ icon: icon, title: title });
         }
 
+        // AKSE LOGIN USER & ADMIN
         window.handleLogin = function(e) {
             e.preventDefault();
-            const u = document.getElementById('loginUsername').value;
-            const p = document.getElementById('loginPassword').value;
+            const u = document.getElementById('loginUsername').value.trim();
+            const p = document.getElementById('loginPassword').value.trim();
 
-            if (u === 'Fajar' && p === 'Aslap123') {
+            if (u === 'Admin' && p === 'Mandiri02srg') {
                 sessionStorage.setItem('isLoggedIn', 'true');
+                sessionStorage.setItem('userRole', 'admin');
                 showMainApp();
-                showToast('success', 'Berhasil masuk ke sistem');
+                showToast('success', 'Berhasil masuk sebagai Admin');
+            } else if (u === 'Fajar' && p === 'Aslap123') {
+                sessionStorage.setItem('isLoggedIn', 'true');
+                sessionStorage.setItem('userRole', 'user');
+                showMainApp();
+                showToast('success', 'Berhasil masuk sebagai Aslap');
             } else {
                 document.getElementById('loginError').classList.remove('hidden');
             }
@@ -418,6 +577,7 @@
             }).then((result) => {
                 if (result.isConfirmed) {
                     sessionStorage.removeItem('isLoggedIn');
+                    sessionStorage.removeItem('userRole');
                     location.reload();
                 }
             });
@@ -426,6 +586,20 @@
         function showMainApp() {
             document.getElementById('loginScreen').classList.add('hidden');
             document.getElementById('mainApp').classList.remove('hidden');
+            
+            const role = sessionStorage.getItem('userRole') || 'user';
+            document.getElementById('userRoleBadge').innerText = role;
+
+            const btnMaster = document.getElementById('btnMasterBarang');
+            const btnDelete = document.getElementById('btnDeleteSavedData');
+            if (role === 'admin') {
+                btnMaster.classList.remove('hidden');
+                btnDelete.classList.remove('hidden');
+            } else {
+                btnMaster.classList.add('hidden');
+                btnDelete.classList.add('hidden');
+            }
+
             updateDatalistOptions();
             loadTodayData();
         }
@@ -480,7 +654,158 @@
             document.getElementById('displayHariTanggal').innerText = `${namaHari}, ${tanggal} ${namaBulan} ${tahun}`;
         }
 
-        // FUNGSI TAMBAH BARIS (MENDUKUNG MULTIPLE FOTO)
+        // PENANGANAN INPUT BARANG SATU PER SATU DENGAN VALIDASI FOTO WAJIB
+        window.triggerFormPhotoUploadChoice = function() {
+            Swal.fire({
+                title: 'Pilih Sumber Foto',
+                text: 'Ingin mengambil gambar dari kamera atau galeri?',
+                icon: 'question',
+                showCancelButton: true,
+                showDenyButton: true,
+                confirmButtonText: '<i class="fa-solid fa-camera mr-1"></i> Kamera',
+                denyButtonText: '<i class="fa-solid fa-images mr-1"></i> Galeri',
+                cancelButtonText: 'Batal',
+                confirmButtonColor: '#4f46e5',
+                denyButtonColor: '#059669'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    document.getElementById('singleFormCamera').click();
+                } else if (result.isDenied) {
+                    document.getElementById('singleFormGallery').click();
+                }
+            });
+        };
+
+        window.handleFormPhotoUpload = async function(input) {
+            const files = Array.from(input.files);
+            if (!files.length) return;
+
+            let namaBarang = document.getElementById('inputNamaBahan').value.trim() || 'TanpaNama';
+            namaBarang = namaBarang.replace(/[^a-zA-Z0-9_-]/g, '_');
+            const dateVal = document.getElementById('inputDate').value || getFormattedToday();
+
+            showToast('info', `Mengunggah ${files.length} foto...`);
+
+            for (let index = 0; index < files.length; index++) {
+                const file = files[index];
+                if (!file.type.startsWith('image/')) continue;
+
+                const fileExt = file.name.split('.').pop() || 'jpg';
+                const customFileName = `${namaBarang}_${dateVal}_${Date.now()}_${index + 1}.${fileExt}`;
+
+                try {
+                    const base64Data = await new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onload = e => resolve(e.target.result);
+                        reader.readAsDataURL(file);
+                    });
+
+                    const response = await fetch(GAS_WEB_APP_URL, {
+                        method: "POST",
+                        body: JSON.stringify({
+                            image: base64Data,
+                            fileName: customFileName
+                        })
+                    });
+
+                    const result = await response.json();
+                    if (result.status === "success") {
+                        tempFormPhotos.push(result.downloadUrl);
+                        tempFormFileIds.push(result.fileId);
+                    }
+                } catch (err) {
+                    console.error("Gagal unggah foto:", err);
+                }
+            }
+
+            renderFormPhotoPreviews();
+            input.value = '';
+            showToast('success', 'Foto berhasil diunggah!');
+        };
+
+        function renderFormPhotoPreviews() {
+            const container = document.getElementById('formPhotoPreview');
+            container.innerHTML = '';
+
+            tempFormPhotos.forEach((rawUrl, idx) => {
+                const formattedUrl = formatPhotoUrl(rawUrl);
+                const wrapper = document.createElement('div');
+                wrapper.className = 'relative inline-block m-0.5';
+                wrapper.innerHTML = `
+                    <img src="${formattedUrl}" onclick="openImagePreview('${formattedUrl}')" class="w-10 h-10 object-cover rounded border border-gray-300 cursor-pointer hover:opacity-80" onerror="this.onerror=null; this.src='${rawUrl}'">
+                    <button type="button" onclick="removeFormPhoto(${idx})" title="Hapus Foto" class="absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-4 h-4 text-[10px] flex items-center justify-center shadow">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                `;
+                container.appendChild(wrapper);
+            });
+        }
+
+        window.removeFormPhoto = async function(index) {
+            const targetFileId = tempFormFileIds[index];
+            if (targetFileId) {
+                showToast('info', 'Menghapus foto...');
+                try {
+                    await fetch(GAS_WEB_APP_URL, {
+                        method: "POST",
+                        body: JSON.stringify({ action: "delete", fileId: targetFileId })
+                    });
+                } catch (err) {
+                    console.error("Gagal hapus foto:", err);
+                }
+            }
+
+            tempFormPhotos.splice(index, 1);
+            tempFormFileIds.splice(index, 1);
+            renderFormPhotoPreviews();
+            showToast('success', 'Foto dihapus');
+        };
+
+        window.submitSingleInputItem = function(e) {
+            e.preventDefault();
+
+            const nama = document.getElementById('inputNamaBahan').value.trim();
+            const order = document.getElementById('inputOrder').value;
+            const masuk = document.getElementById('inputMasuk').value;
+            const satuan = document.getElementById('inputSatuan').value || 'kg';
+            const merk = document.getElementById('inputMerk').value;
+            const ket = document.getElementById('inputKeterangan').value;
+
+            if (!nama) {
+                showToast('warning', 'Nama Bahan Baku wajib diisi!');
+                return;
+            }
+
+            // VALIDASI WAJIB UNGGAH FOTO
+            if (!tempFormPhotos || tempFormPhotos.length === 0) {
+                Swal.fire({
+                    title: 'Foto Wajib Diunggah!',
+                    text: 'Anda harus mengunggah foto barang sebelum menambahkan item ke tabel.',
+                    icon: 'warning',
+                    confirmButtonColor: '#4f46e5',
+                    confirmButtonText: 'Mengerti'
+                });
+                return;
+            }
+
+            // Tambahkan data ke tabel output
+            addRow(nama, order, masuk, satuan, merk, ket, [...tempFormPhotos], [...tempFormFileIds]);
+
+            // Reset form input satu per satu
+            document.getElementById('inputNamaBahan').value = '';
+            document.getElementById('inputOrder').value = '';
+            document.getElementById('inputMasuk').value = '';
+            document.getElementById('inputSatuan').value = '';
+            document.getElementById('inputMerk').value = '';
+            document.getElementById('inputKeterangan').value = '';
+            tempFormPhotos = [];
+            tempFormFileIds = [];
+            renderFormPhotoPreviews();
+
+            showToast('success', 'Barang berhasil ditambahkan ke tabel!');
+        };
+
+        // FUNGSI TAMBAH BARIS TABEL OUTPUT
         window.addRow = function(nama = '', order = '', masuk = '', satuan = 'kg', merk = '', ket = '', photo = [], fileId = []) {
             const tbody = document.getElementById('tableBody');
             const rowCount = tbody.children.length + 1;
@@ -490,7 +815,6 @@
                 saveMasterItems();
             }
 
-            // Normalisasi data menjadi array jika dikirim sebagai string
             let photoArray = Array.isArray(photo) ? photo : (photo ? [photo] : []);
             let fileIdArray = Array.isArray(fileId) ? fileId : (fileId ? [fileId] : []);
 
@@ -501,13 +825,14 @@
                 <td class="border border-gray-300 p-2 text-center font-medium row-number">${rowCount}</td>
                 <td class="border border-gray-300 p-1 text-center align-middle">
                     <div class="relative group flex items-center justify-center gap-1 flex-wrap">
-                        <input type="file" accept="image/*" multiple class="hidden photo-input" onchange="handlePhotoUpload(this)">
+                        <input type="file" accept="image/*" class="hidden photo-input-camera" capture="environment" onchange="handlePhotoUpload(this)">
+                        <input type="file" accept="image/*" multiple class="hidden photo-input-gallery" onchange="handlePhotoUpload(this)">
                         <input type="hidden" class="photo-data" value='${JSON.stringify(photoArray)}'>
                         <input type="hidden" class="drive-file-id" value='${JSON.stringify(fileIdArray)}'>
                         
                         <div class="photo-preview flex flex-wrap gap-1 items-center justify-center"></div>
 
-                        <button type="button" onclick="triggerPhotoInput(this)" title="Unggah Foto" class="photo-upload-btn no-print w-8 h-8 border border-dashed border-gray-300 hover:border-indigo-500 rounded text-gray-400 hover:text-indigo-600 flex items-center justify-center transition-colors bg-gray-50 hover:bg-indigo-50">
+                        <button type="button" onclick="triggerPhotoUploadChoice(this)" title="Unggah Foto Tambahan" class="photo-upload-btn no-print w-8 h-8 border border-dashed border-gray-300 hover:border-indigo-500 rounded text-gray-400 hover:text-indigo-600 flex items-center justify-center transition-colors bg-gray-50 hover:bg-indigo-50">
                             <i class="fa-solid fa-camera text-xs"></i>
                         </button>
                     </div>
@@ -531,7 +856,7 @@
                     <input type="text" value="${ket}" placeholder="" class="input-print-border w-full p-1.5 border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:outline-none text-sm">
                 </td>
                 <td class="border border-gray-300 p-1 text-center no-print">
-                    <button onclick="deleteRow(this)" title="Hapus Baris" class="text-red-500 hover:text-red-700 p-1.5 rounded transition-colors">
+                    <button onclick="deleteRow(this)" title="Hapus Baris" class="btn-delete-row text-red-500 hover:text-red-700 p-1.5 rounded transition-colors">
                         <i class="fa-solid fa-trash-can"></i>
                     </button>
                 </td>
@@ -539,15 +864,31 @@
 
             tbody.appendChild(tr);
             renderPhotoPreviews(tr.querySelector('td:nth-child(2)'), photoArray, fileIdArray);
+            updateNextNoUrut();
         };
 
-        window.triggerPhotoInput = function(btn) {
+        window.triggerPhotoUploadChoice = function(btn) {
             const container = btn.closest('td');
-            const fileInput = container.querySelector('.photo-input');
-            fileInput.click();
+            Swal.fire({
+                title: 'Pilih Sumber Foto',
+                text: 'Ingin mengambil gambar langsung dari kamera atau galeri?',
+                icon: 'question',
+                showCancelButton: true,
+                showDenyButton: true,
+                confirmButtonText: '<i class="fa-solid fa-camera mr-1"></i> Kamera',
+                denyButtonText: '<i class="fa-solid fa-images mr-1"></i> Galeri',
+                cancelButtonText: 'Batal',
+                confirmButtonColor: '#4f46e5',
+                denyButtonColor: '#059669'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    container.querySelector('.photo-input-camera').click();
+                } else if (result.isDenied) {
+                    container.querySelector('.photo-input-gallery').click();
+                }
+            });
         };
 
-        // UNGGAH BEBERAPA FOTO SEKALIGUS
         window.handlePhotoUpload = async function(input) {
             const files = Array.from(input.files);
             if (!files.length) return;
@@ -567,7 +908,7 @@
             namaBarang = namaBarang.replace(/[^a-zA-Z0-9_-]/g, '_');
             const dateVal = document.getElementById('inputDate').value || getFormattedToday();
 
-            showToast('info', `Mengunggah ${files.length} foto ke Drive...`);
+            showToast('info', `Mengunggah ${files.length} foto...`);
 
             for (let index = 0; index < files.length; index++) {
                 const file = files[index];
@@ -604,29 +945,26 @@
             photoDataInput.value = JSON.stringify(photoUrls);
             fileIdInput.value = JSON.stringify(fileIds);
 
-            // Bersihkan sorotan merah jika foto berhasil diunggah
-            row.classList.remove('bg-red-50', 'border-red-300');
-
             renderPhotoPreviews(container, photoUrls, fileIds);
             input.value = '';
-            showToast('success', 'Semua foto berhasil diunggah!');
+            showToast('success', 'Foto berhasil diunggah!');
         };
 
-        // RENDER PREVIEW DAFTAR FOTO
         function renderPhotoPreviews(tdContainer, photoUrls, fileIds) {
             const previewContainer = tdContainer.querySelector('.photo-preview');
             if(!previewContainer) return;
             previewContainer.innerHTML = '';
 
-            photoUrls.forEach((url, idx) => {
+            photoUrls.forEach((rawUrl, idx) => {
+                const formattedUrl = formatPhotoUrl(rawUrl);
                 const wrapper = document.createElement('div');
                 wrapper.className = 'relative inline-block m-0.5';
                 wrapper.innerHTML = `
-                    <img src="${url}" onclick="openImagePreview('${url}')" class="w-8 h-8 object-cover rounded border border-gray-300 cursor-pointer hover:opacity-80">
-                    <a href="${url}" target="_blank" download title="Unduh Foto" class="no-print absolute bottom-0 left-0 bg-blue-600/80 hover:bg-blue-600 text-white w-3 h-3 text-[8px] flex items-center justify-center rounded-tr">
+                    <img src="${formattedUrl}" onclick="openImagePreview('${formattedUrl}')" class="w-8 h-8 object-cover rounded border border-gray-300 cursor-pointer hover:opacity-80" onerror="this.onerror=null; this.src='${rawUrl}'">
+                    <a href="${rawUrl}" target="_blank" download title="Unduh Foto" class="no-print absolute bottom-0 left-0 bg-blue-600/80 hover:bg-blue-600 text-white w-3 h-3 text-[8px] flex items-center justify-center rounded-tr">
                         <i class="fa-solid fa-download"></i>
                     </a>
-                    <button type="button" onclick="removeSinglePhoto(this, ${idx})" title="Hapus" class="no-print absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-3.5 h-3.5 text-[9px] flex items-center justify-center shadow">
+                    <button type="button" onclick="removeSinglePhoto(this, ${idx})" title="Hapus" class="btn-remove-photo no-print absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-3.5 h-3.5 text-[9px] flex items-center justify-center shadow">
                         <i class="fa-solid fa-xmark"></i>
                     </button>
                 `;
@@ -634,8 +972,12 @@
             });
         }
 
-        // HAPUS SATU FOTO TERTENTU DARI WEB & DRIVE
         window.removeSinglePhoto = async function(btn, index) {
+            if (!canUserDelete()) {
+                showToast('error', 'User hanya dapat menghapus data transaksi hari ini!');
+                return;
+            }
+
             const container = btn.closest('td');
             const photoDataInput = container.querySelector('.photo-data');
             const fileIdInput = container.querySelector('.drive-file-id');
@@ -646,14 +988,14 @@
             const targetFileId = fileIds[index];
 
             if (targetFileId) {
-                showToast('info', 'Menghapus foto dari Google Drive...');
+                showToast('info', 'Menghapus foto...');
                 try {
                     await fetch(GAS_WEB_APP_URL, {
                         method: "POST",
                         body: JSON.stringify({ action: "delete", fileId: targetFileId })
                     });
                 } catch (err) {
-                    console.error("Gagal hapus file dari Drive:", err);
+                    console.error("Gagal hapus foto:", err);
                 }
             }
 
@@ -758,56 +1100,10 @@
             });
         };
 
-        window.openArchiveModal = async function() {
-            document.getElementById('archiveModal').classList.remove('hidden');
-            const container = document.getElementById('archiveItemsContainer');
-            container.innerHTML = `<div class="p-4 text-center text-xs text-gray-500">Memuat data arsip...</div>`;
-
-            if (window.getAllArchivesFirebase) {
-                const archives = await window.getAllArchivesFirebase();
-                if (archives.length === 0) {
-                    container.innerHTML = `<div class="p-4 text-center text-xs text-gray-500">Belum ada data tersimpan di arsip.</div>`;
-                    return;
-                }
-
-                archives.sort((a, b) => b.date.localeCompare(a.date));
-                container.innerHTML = '';
-
-                archives.forEach(arc => {
-                    const itemCount = arc.items ? arc.items.length : 0;
-                    const div = document.createElement('div');
-                    div.className = 'flex justify-between items-center p-3 hover:bg-gray-50 cursor-pointer transition-colors';
-                    div.onclick = () => selectArchiveDate(arc.date);
-                    div.innerHTML = `
-                        <div>
-                            <div class="font-bold text-sm text-gray-800">${arc.date}</div>
-                            <div class="text-xs text-gray-500">${itemCount} Jenis Barang Tercatat</div>
-                        </div>
-                        <button class="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium rounded transition-colors">
-                            Buka
-                        </button>
-                    `;
-                    container.appendChild(div);
-                });
-            }
-        };
-
-        window.closeArchiveModal = function() {
-            document.getElementById('archiveModal').classList.add('hidden');
-        };
-
-        window.selectArchiveDate = function(dateStr) {
-            document.getElementById('inputDate').value = dateStr;
-            onDateInputChange(dateStr);
-            closeArchiveModal();
-            showToast('info', `Memuat data arsip tanggal ${dateStr}`);
-        };
-
-        // HAPUS BARIS & SEMUA FOTO DI BARIS TERSEBUT
+        // HAPUS BARIS
         window.deleteRow = async function(btn) {
-            const tbody = document.getElementById('tableBody');
-            if (tbody.children.length <= 1) {
-                showToast('warning', 'Tabel minimal harus memiliki 1 baris.');
+            if (!canUserDelete()) {
+                showToast('error', 'User hanya dapat menghapus data transaksi hari ini!');
                 return;
             }
 
@@ -824,7 +1120,7 @@
                             body: JSON.stringify({ action: "delete", fileId: fId })
                         });
                     } catch (err) {
-                        console.error("Gagal hapus foto Drive:", err);
+                        console.error("Gagal hapus foto:", err);
                     }
                 }
             }
@@ -839,9 +1135,10 @@
                 const cell = row.querySelector('.row-number');
                 if (cell) cell.innerText = index + 1;
             });
+            updateNextNoUrut();
         }
 
-        // SIMPAN DATA DENGAN VALIDASI WAJIB UNGGAH FOTO
+        // SIMPAN DATA KEDALAM FIREBASE
         window.saveCurrentData = async function() {
             const dateKey = document.getElementById('inputDate').value;
             if (!dateKey) {
@@ -851,16 +1148,14 @@
 
             const rows = document.querySelectorAll('#tableBody tr');
             const dataToSave = [];
-            let hasError = false;
-            let missingPhotoItems = [];
 
-            rows.forEach((row, index) => {
+            rows.forEach((row) => {
                 let photoData = [];
                 let fileIdData = [];
                 try { photoData = JSON.parse(row.querySelector('.photo-data').value || "[]"); } catch(e){}
                 try { fileIdData = JSON.parse(row.querySelector('.drive-file-id').value || "[]"); } catch(e){}
 
-                const inputs = row.querySelectorAll('input:not(.photo-data):not(.photo-input):not(.drive-file-id), select');
+                const inputs = row.querySelectorAll('input:not(.photo-data):not(.photo-input-camera):not(.photo-input-gallery):not(.drive-file-id), select');
                 const nama = inputs[0] ? inputs[0].value.trim() : '';
                 const order = inputs[1] ? inputs[1].value : '';
                 const masuk = inputs[2] ? inputs[2].value : '';
@@ -868,45 +1163,64 @@
                 const merk = inputs[4] ? inputs[4].value : '';
                 const ket = inputs[5] ? inputs[5].value : '';
 
-                // Cek jika baris diisi
-                const isRowFilled = nama !== '' || order !== '' || masuk !== '' || merk !== '' || ket !== '';
-
-                if (isRowFilled) {
-                    // Validasi: Wajib ada minimal 1 foto
-                    if (photoData.length === 0) {
-                        hasError = true;
-                        const itemLabel = nama ? `"${nama}" (Baris ${index + 1})` : `Baris ${index + 1}`;
-                        missingPhotoItems.push(itemLabel);
-                        
-                        // Tandai baris yang belum ada foto dengan warna merah
-                        row.classList.add('bg-red-50', 'border-red-300');
-                    } else {
-                        row.classList.remove('bg-red-50', 'border-red-300');
-                        dataToSave.push({ nama, order, masuk, satuan, merk, ket, photo: photoData, fileId: fileIdData });
-                    }
+                if (nama || photoData.length > 0) {
+                    dataToSave.push({ nama, order, masuk, satuan, merk, ket, photo: photoData, fileId: fileIdData });
                 }
             });
 
-            if (dataToSave.length === 0 && !hasError) {
-                showToast('warning', 'Tidak ada data barang yang diisi untuk disimpan.');
-                return;
-            }
-
-            // Tampilkan alert error jika ada barang belum diunggah fotonya
-            if (hasError) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Foto Wajib Diunggah!',
-                    html: `Beberapa barang belum memiliki foto bukti penerimaan:<br><br><strong class="text-red-600">${missingPhotoItems.join('<br>')}</strong><br><br>Silakan unggah foto terlebih dahulu sebelum menyimpan.`,
-                    confirmButtonColor: '#4f46e5'
-                });
-                return;
-            }
-
-            // Simpan ke Firebase jika semua validasi terpenuhi
             if (window.saveDataToFirebase) {
                 await window.saveDataToFirebase(dateKey, dataToSave);
             }
+        };
+
+        // AKSI HAPUS DATA TERSIMPAN OLEH ADMIN
+        window.deleteSavedDataFirebase = async function() {
+            const dateKey = document.getElementById('inputDate').value;
+            if (!dateKey) {
+                showToast('warning', 'Pilih tanggal transaksi yang ingin dihapus.');
+                return;
+            }
+
+            Swal.fire({
+                title: 'Hapus Data Tersimpan?',
+                text: `Data transaksi pada tanggal ${dateKey} akan dihapus secara permanen dari sistem!`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Ya, Hapus Permanen',
+                cancelButtonText: 'Batal'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    showToast('info', 'Menghapus data...');
+                    const rows = document.querySelectorAll('#tableBody tr');
+                    for (const row of rows) {
+                        let fileIds = [];
+                        try { fileIds = JSON.parse(row.querySelector('.drive-file-id').value || "[]"); } catch(e){}
+                        for (const fId of fileIds) {
+                            if (fId) {
+                                try {
+                                    await fetch(GAS_WEB_APP_URL, {
+                                        method: "POST",
+                                        body: JSON.stringify({ action: "delete", fileId: fId })
+                                    });
+                                } catch(err) {
+                                    console.error("Gagal hapus foto drive:", err);
+                                }
+                            }
+                        }
+                    }
+
+                    if (window.deleteDataFromFirebase) {
+                        const success = await window.deleteDataFromFirebase(dateKey);
+                        if (success) {
+                            document.getElementById('tableBody').innerHTML = '';
+                            updateNextNoUrut();
+                            showToast('success', `Data tanggal ${dateKey} telah dihapus.`);
+                        }
+                    }
+                }
+            });
         };
 
         async function loadDataByDate(dateKey) {
@@ -921,10 +1235,8 @@
                 records.forEach(item => {
                     addRow(item.nama, item.order, item.masuk, item.satuan, item.merk, item.ket, item.photo || [], item.fileId || []);
                 });
-            } else {
-                addRow();
-                addRow();
             }
+            updateNextNoUrut();
         }
 
         window.onDateInputChange = function(dateVal) {
@@ -958,7 +1270,7 @@
 
             if (filteredDocs.length === 0) {
                 showToast('info', 'Tidak ada data pada rentang tanggal tersebut.');
-                addRow();
+                updateNextNoUrut();
                 return;
             }
 
@@ -969,10 +1281,16 @@
             });
 
             document.getElementById('displayHariTanggal').innerText = `${start} s/d ${end}`;
+            updateNextNoUrut();
             showToast('success', 'Data berhasil ditampilkan.');
         };
 
         window.resetForm = function() {
+            if (!canUserDelete()) {
+                showToast('error', 'User hanya dapat mengosongkan/reset form untuk transaksi hari ini!');
+                return;
+            }
+
             Swal.fire({
                 title: 'Reset Form?',
                 text: "Apakah Anda yakin ingin mengosongkan tabel saat ini?",
@@ -985,15 +1303,14 @@
             }).then((result) => {
                 if (result.isConfirmed) {
                     document.getElementById('tableBody').innerHTML = '';
-                    addRow();
-                    addRow();
+                    updateNextNoUrut();
                     showToast('info', 'Tabel berhasil dikosongkan');
                 }
             });
         };
 
         function replaceInputsWithText(element) {
-            const inputs = element.querySelectorAll('input:not(.photo-data):not(.photo-input):not(.drive-file-id), select');
+            const inputs = element.querySelectorAll('input:not(.photo-data):not(.photo-input-camera):not(.photo-input-gallery):not(.drive-file-id), select');
             const replacedList = [];
 
             inputs.forEach(input => {
@@ -1092,7 +1409,7 @@
                 let photoData = [];
                 try { photoData = JSON.parse(row.querySelector('.photo-data').value || "[]"); } catch(e){}
 
-                const inputs = row.querySelectorAll('input:not(.photo-data):not(.photo-input):not(.drive-file-id), select');
+                const inputs = row.querySelectorAll('input:not(.photo-data):not(.photo-input-camera):not(.photo-input-gallery):not(.drive-file-id), select');
                 const no = row.querySelector('.row-number') ? row.querySelector('.row-number').innerText : '';
                 const nama = inputs[0] ? inputs[0].value : '';
                 const order = inputs[1] ? inputs[1].value : '';
@@ -1126,9 +1443,7 @@
         };
 
         window.onload = function() {
-            if (sessionStorage.getItem('isLoggedIn') === 'true') {
-                showMainApp();
-            }
+            checkLocation();
         };
     </script>
 </body>
