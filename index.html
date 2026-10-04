@@ -465,6 +465,50 @@ const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwKfirt58sKPJln
 let tempFormFiles = [];
 let tempFormPhotos = [];
 
+// DAFTAR KATA KUNCI NAMA BARANG KEMASAN YANG WAJIB ISI EXPIRED
+const KEMASAN_KEYWORDS = [
+  'minyak', 'gula', 'susu', 'kecap', 'saos', 'saus', 'mentega', 'sirup', 
+  'terigu', 'tepung', 'sarden', 'kaleng', 'kopi', 'teh', 'mi', 'mie', 
+  'keju', 'biskuit', 'snack', 'puding', 'agar', 'bumbu', 'instan', 'kemasan',
+  'margarine', 'margarim', 'masako', 'royco', 'royko', 'garam', 'santan'
+];
+
+// FUNGSI CEK APAKAH BARANG TERMASUK KATEGORI KEMASAN BERDASARKAN NAMA BARANG
+function isPackagingItemByName(nama) {
+  if (!nama) return false;
+  const lowerName = nama.toLowerCase();
+  return KEMASAN_KEYWORDS.some(keyword => lowerName.includes(keyword));
+}
+
+// FUNGSI UNDUH FOTO SECARA OTOMATIS KE LOKAL TANPA REDIRECT ATAU GOOGLE DRIVE
+window.downloadPhotoDirectly = async function(url, filename) {
+  try {
+    showToast('info', 'Mengunduh gambar...');
+    const formattedUrl = formatPhotoUrl(url);
+    const response = await fetch(formattedUrl);
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename || `Foto_Barang_${Date.now()}.jpg`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(blobUrl);
+    showToast('success', 'Gambar berhasil diunduh ke lokal');
+  } catch (err) {
+    console.error("Gagal unduh gambar via fetch:", err);
+    // Fallback jika blob terhalang CORS
+    const a = document.createElement('a');
+    a.href = formatPhotoUrl(url);
+    a.download = filename || `Foto_Barang_${Date.now()}.jpg`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+};
+
 // FUNGSI KOMPRESI FOTO AGAR LEBIH KECIL & EKSPRES
 function compressImage(file, maxWidth = 1000, quality = 0.7) {
   return new Promise((resolve) => {
@@ -754,6 +798,17 @@ showToast('warning', 'Nama Barang wajib diisi!');
 return;
 }
 
+if (isPackagingItemByName(nama) && !tglExpired) {
+Swal.fire({
+title: 'Tanggal Expired Wajib Diisi!',
+text: `Barang kemasan (${nama}) wajib diisi tanggal kedaluwarsanya.`,
+icon: 'warning',
+confirmButtonColor: '#4f46e5',
+confirmButtonText: 'Mengerti'
+});
+return;
+}
+
 if (!tempFormPhotos || tempFormPhotos.length === 0) {
 Swal.fire({
 title: 'Foto Belum Ada!',
@@ -767,7 +822,6 @@ return;
 
 const dateKey = document.getElementById('inputDate').value || getFormattedToday();
 
-// TAMPILKAN LOADING
 Swal.fire({
 title: 'Sedang Menyimpan Data...',
 text: 'Harap tunggu...',
@@ -783,7 +837,6 @@ let uploadedFileIds = [];
 try {
 const sanitizedNama = nama.replace(/[^a-zA-Z0-9-]/g, '_');
 
-// UNGGAH UNTUK SEMUA FOTO SECARA PARALEL (PROSES CEPAT / FAST BATCH UPLOAD)
 const uploadPromises = tempFormFiles.map(async (file, fIndex) => {
   const compressedBase64 = await compressImage(file, 1000, 0.7);
   const customFileName = `${sanitizedNama}_${dateKey}_${Date.now()}_${fIndex}.jpg`;
@@ -810,10 +863,8 @@ results.forEach(res => {
   }
 });
 
-// Tambah baris baru di tabel HTML
 addRow(nama, order, masuk, satuan, kondisiKemasan, kondisiFisik, suhu, tglExpired, sesuaiSpec, ket, uploadedPhotoUrls, uploadedFileIds, []);
 
-// Simpan seluruh data tabel langsung ke Firebase
 const dataToSave = getTableDataArray();
 
 if (window.saveDataToFirebase) {
@@ -822,7 +873,6 @@ await window.saveDataToFirebase(dateKey, dataToSave);
 
 Swal.close();
 
-// Reset Input Form
 document.getElementById('inputNamaBahan').value = '';
 document.getElementById('inputOrder').value = '';
 document.getElementById('inputMasuk').value = '';
@@ -1005,10 +1055,13 @@ previewContainer.innerHTML = '';
 
 photoUrls.forEach((rawUrl, idx) => {
 const formattedUrl = formatPhotoUrl(rawUrl);
-const isUploading = rawUrl.startsWith('blob:');
 const wrapper = document.createElement('div');
 wrapper.className = 'relative inline-block m-0.5';
-wrapper.innerHTML = `<img src="${formattedUrl}" onclick="openImagePreview('${formattedUrl}')" class="w-8 h-8 object-cover rounded border border-gray-300 cursor-pointer hover:opacity-80">${!isUploading ? `<a href="${rawUrl}" target="_blank" download title="Unduh Foto" class="no-print absolute bottom-0 left-0 bg-blue-600/80 hover:bg-blue-600 text-white w-3 h-3 text-[8px] flex items-center justify-center rounded-tr"><i class="fa-solid fa-download"></i></a>` : ''}<button type="button" onclick="removeSinglePhoto(this, ${idx})" title="Hapus" class="btn-remove-photo no-print absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-3.5 h-3.5 text-[9px] flex items-center justify-center shadow"><i class="fa-solid fa-xmark"></i></button>`;
+wrapper.innerHTML = `
+  <img src="${formattedUrl}" onclick="openImagePreview('${formattedUrl}')" title="Klik untuk melihat foto" class="w-8 h-8 object-cover rounded border border-gray-300 cursor-pointer hover:opacity-80">
+  <button type="button" onclick="downloadPhotoDirectly('${formattedUrl}', 'Foto_Barang_${idx + 1}.jpg')" title="Unduh Foto ke Lokal" class="no-print absolute bottom-0 left-0 bg-blue-600/90 hover:bg-blue-600 text-white w-3.5 h-3.5 text-[8px] flex items-center justify-center rounded-tr shadow"><i class="fa-solid fa-download"></i></button>
+  <button type="button" onclick="removeSinglePhoto(this, ${idx})" title="Hapus Foto" class="btn-remove-photo no-print absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-3.5 h-3.5 text-[9px] flex items-center justify-center shadow"><i class="fa-solid fa-xmark"></i></button>
+`;
 previewContainer.appendChild(wrapper);
 });
 }
@@ -1145,7 +1198,6 @@ showToast('success', 'Item berhasil dihapus');
 });
 };
 
-// FUNGSI HAPUS BARIS DENGAN SINKRONISASI LENGKAP FIREBASE PERMANEN
 window.deleteRow = async function(btn) {
 if (!canUserDelete()) {
 showToast('error', 'User hanya dapat menghapus data transaksi hari ini!');
@@ -1169,7 +1221,6 @@ const fileIdInput = row.querySelector('.drive-file-id');
 let fileIds = [];
 try { fileIds = JSON.parse(fileIdInput.value || "[]"); } catch(e){}
 
-// Hapus file dari Drive jika ada ID-nya
 for (const fId of fileIds) {
 if (fId) {
 try {
@@ -1219,6 +1270,23 @@ const rows = document.querySelectorAll('#tableBody tr');
 if (rows.length === 0) {
 showToast('warning', 'Tidak ada data untuk disimpan.');
 return false;
+}
+
+for (let i = 0; i < rows.length; i++) {
+  const row = rows[i];
+  const inputs = row.querySelectorAll('input:not(.photo-data):not(.photo-input-camera):not(.photo-input-gallery):not(.drive-file-id), select');
+  const namaBarang = inputs[0] ? inputs[0].value.trim() : '';
+  const tglExp = inputs[7] ? inputs[7].value : '';
+
+  if (isPackagingItemByName(namaBarang) && !tglExp) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Tanggal Expired Wajib Diisi!',
+      text: `Baris ke-${i + 1} (${namaBarang}) termasuk barang kemasan dan wajib diisi tanggal kedaluwarsanya.`,
+      confirmButtonColor: '#4f46e5'
+    });
+    return false;
+  }
 }
 
 const dataToSave = [];
@@ -1464,7 +1532,7 @@ showToast('info', 'Tabel berhasil dikosongkan');
 });
 };
 
-/* --- LOGIKA UNDUH BARANG & NOTIFIKASI --- */
+/* --- LOGIKA UNDUH BARANG & NOTIFIKASI DENGAN RENDER EKSPRES --- */
 
 function replaceInputsWithText(element) {
 const inputs = element.querySelectorAll('input:not(.photo-data):not(.photo-input-camera):not(.photo-input-gallery):not(.drive-file-id), select');
@@ -1509,6 +1577,7 @@ return `${start}_sd_${end}`;
 return document.getElementById('inputDate').value || getFormattedToday();
 }
 
+// OPTIMASI EKSPOR PNG SUPER CEPAT
 window.downloadPNGDirect = async function() {
 const rows = document.querySelectorAll('#tableBody tr');
 if (rows.length === 0) {
@@ -1522,14 +1591,15 @@ return;
 }
 
 Swal.fire({
-title: 'Tunggu Sebentar...',
-html: 'Sedang Disiapkan.',
+title: 'Proses Cepat...',
+text: 'Menyiapkan berkas PNG...',
 allowOutsideClick: false,
 didOpen: () => {
 Swal.showLoading();
 }
 });
 
+setTimeout(async () => {
 const dateSuffix = getExportDateSuffix();
 const filename = `Penerimaan_Bahan_Baku_${dateSuffix}.png`;
 const element = document.getElementById('formContent');
@@ -1537,7 +1607,7 @@ const replaced = replaceInputsWithText(element);
 
 try {
 const canvas = await html2canvas(element, {
-scale: 2,
+scale: 1.5,
 useCORS: true,
 allowTaint: true,
 backgroundColor: '#ffffff',
@@ -1548,7 +1618,7 @@ restoreInputs(replaced);
 
 const link = document.createElement('a');
 link.download = filename;
-link.href = canvas.toDataURL('image/png');
+link.href = canvas.toDataURL('image/png', 0.85);
 document.body.appendChild(link);
 link.click();
 document.body.removeChild(link);
@@ -1557,15 +1627,17 @@ Swal.fire({
 icon: 'success',
 title: 'Unduh Berhasil!',
 text: `Berkas PNG (${filename}) berhasil disimpan.`,
-timer: 2000,
+timer: 1500,
 showConfirmButton: false
 });
 } catch(e) {
 restoreInputs(replaced);
 Swal.fire('Gagal Export', 'Gagal membuat gambar PNG: ' + e.message, 'error');
 }
+}, 100);
 };
 
+// OPTIMASI EKSPOR PDF SUPER CEPAT
 window.downloadPDFDirect = async function() {
 const rows = document.querySelectorAll('#tableBody tr');
 if (rows.length === 0) {
@@ -1579,14 +1651,15 @@ return;
 }
 
 Swal.fire({
-title: 'Menyusun Dokumen PDF...',
-html: 'Mohon tunggu sebentar, file PDF sedang dibuat...',
+title: 'Proses Cepat...',
+text: 'Menyiapkan berkas PDF...',
 allowOutsideClick: false,
 didOpen: () => {
 Swal.showLoading();
 }
 });
 
+setTimeout(async () => {
 const dateSuffix = getExportDateSuffix();
 const filename = `Penerimaan_Bahan_Baku_${dateSuffix}.pdf`;
 const element = document.getElementById('formContent');
@@ -1595,8 +1668,8 @@ const replaced = replaceInputsWithText(element);
 const opt = {
 margin: [5, 5, 5, 5],
 filename: filename,
-image: { type: 'jpeg', quality: 0.95 },
-html2canvas: { scale: 2, useCORS: true, allowTaint: true, ignoreElements: (el) => el.classList.contains('no-print') },
+image: { type: 'jpeg', quality: 0.85 },
+html2canvas: { scale: 1.5, useCORS: true, allowTaint: true, ignoreElements: (el) => el.classList.contains('no-print') },
 jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
 };
 
@@ -1608,13 +1681,14 @@ Swal.fire({
 icon: 'success',
 title: 'Unduh Berhasil!',
 text: `Berkas PDF (${filename}) berhasil disimpan.`,
-timer: 2000,
+timer: 1500,
 showConfirmButton: false
 });
 } catch(err) {
 restoreInputs(replaced);
 Swal.fire('Gagal Export', 'Gagal membuat dokumen PDF: ' + err.message, 'error');
 }
+}, 100);
 };
 
 window.downloadExcelDirect = function() {
@@ -1631,7 +1705,7 @@ return;
 
 Swal.fire({
 title: 'Membuat Spreadsheet Excel...',
-html: 'Sedang menyusun data transaksi ke format .xlsx...',
+text: 'Sedang menyusun data...',
 allowOutsideClick: false,
 didOpen: () => {
 Swal.showLoading();
@@ -1688,13 +1762,13 @@ Swal.fire({
 icon: 'success',
 title: 'Unduh Berhasil!',
 text: `Berkas Excel (${filename}) berhasil diunduh.`,
-timer: 2000,
+timer: 1500,
 showConfirmButton: false
 });
 } catch(e) {
 Swal.fire('Gagal Export', 'Gagal membuat file Excel: ' + e.message, 'error');
 }
-}, 500);
+}, 100);
 };
 
 window.onload = function() {
