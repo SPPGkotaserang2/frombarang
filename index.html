@@ -1722,8 +1722,9 @@ Swal.showLoading();
 });
 
 setTimeout(async () => {
+const timestamp = Date.now();
 const dateSuffix = getExportDateSuffix();
-const filename = `Penerimaan_Bahan_Baku_${dateSuffix}.png`;
+const filename = `Penerimaan_Bahan_Baku_${dateSuffix}_${timestamp}.png`;
 const element = document.getElementById('formContent');
 const replaced = replaceInputsWithText(element);
 
@@ -1781,8 +1782,9 @@ Swal.showLoading();
 });
 
 setTimeout(async () => {
+const timestamp = Date.now();
 const dateSuffix = getExportDateSuffix();
-const filename = `Penerimaan_Bahan_Baku_${dateSuffix}.pdf`;
+const filename = `Penerimaan_Bahan_Baku_${dateSuffix}_${timestamp}.pdf`;
 const element = document.getElementById('formContent');
 const replaced = replaceInputsWithText(element);
 
@@ -1835,8 +1837,9 @@ Swal.showLoading();
 
 setTimeout(() => {
 try {
+const timestamp = Date.now();
 const dateSuffix = getExportDateSuffix();
-const filename = `Penerimaan_Bahan_Baku_${dateSuffix}.xlsx`;
+const filename = `Penerimaan_Bahan_Baku_${dateSuffix}_${timestamp}.xlsx`;
 const dateDisplay = document.getElementById('displayHariTanggal').innerText;
 const excelData = [];
 
