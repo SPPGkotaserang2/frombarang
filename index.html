@@ -209,9 +209,16 @@ Tutup
 <div class="flex flex-wrap justify-between items-center gap-4 border-b pb-4">
 <div>
 <h1 class="text-xl font-bold text-gray-800">Sistem Penerimaan Bahan Baku</h1>
+<div class="flex items-center gap-3 mt-1">
 <p class="text-xs text-gray-500">
 Status Akses: <span id="userRoleBadge" class="font-bold text-indigo-600 uppercase"></span>
 </p>
+<!-- Tampilan Kekuatan Jaringan Internet -->
+<div id="networkStatusBadge" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+<i id="networkIcon" class="fa-solid fa-wifi text-[10px]"></i>
+<span id="networkText">Menghubungkan...</span>
+</div>
+</div>
 </div>
 <div class="flex items-center gap-2 flex-wrap">
 <button id="btnMasterBarang" onclick="openMasterModal()" class="px-3 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors flex items-center gap-2 border border-slate-300">
@@ -1709,8 +1716,7 @@ return replacedList;
 }
 
 function restoreInputs(replacedList) {
-replacedList.forEach(item => {
-item.input.style.display = '';
+replacedList.forEach(item => {item.input.style.display = '';
 if(item.span && item.span.parentNode) {
 item.span.parentNode.removeChild(item.span);
 }
@@ -1915,9 +1921,55 @@ Swal.fire('Gagal Export', 'Gagal membuat Excel: ' + e.message, 'error');
 }, 100);
 };
 
+// LOGIKA UPDATE INDIKATOR KEKUATAN JARINGAN INTERNET
+function updateNetworkStatus() {
+  const badge = document.getElementById('networkStatusBadge');
+  const icon = document.getElementById('networkIcon');
+  const text = document.getElementById('networkText');
+  if (!badge || !icon || !text) return;
+
+  if (!navigator.onLine) {
+    badge.className = "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200";
+    icon.className = "fa-solid fa-wifi text-[10px]";
+    text.innerText = "Offline";
+    return;
+  }
+
+  const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  if (conn) {
+    const effectiveType = conn.effectiveType; // '4g', '3g', '2g', 'slow-2g'
+    const rtt = conn.rtt; // Round Trip Time (ms)
+    
+    if (effectiveType === '4g' && (rtt === undefined || rtt < 250)) {
+      badge.className = "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 border border-emerald-200";
+      icon.className = "fa-solid fa-wifi text-[10px]";
+      text.innerText = "Sangat Baik (4G)";
+    } else if (effectiveType === '4g' || effectiveType === '3g') {
+      badge.className = "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200";
+      icon.className = "fa-solid fa-wifi text-[10px]";
+      text.innerText = "Sedang (" + effectiveType.toUpperCase() + ")";
+    } else {
+      badge.className = "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-rose-100 text-rose-800 border border-rose-200";
+      icon.className = "fa-solid fa-wifi text-[10px]";
+      text.innerText = "Lemah (" + (effectiveType ? effectiveType.toUpperCase() : 'Slow') + ")";
+    }
+  } else {
+    badge.className = "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 border border-emerald-200";
+    icon.className = "fa-solid fa-wifi text-[10px]";
+    text.innerText = "Online";
+  }
+}
+
+window.addEventListener('online', updateNetworkStatus);
+window.addEventListener('offline', updateNetworkStatus);
+if (navigator.connection) {
+  navigator.connection.addEventListener('change', updateNetworkStatus);
+}
+
 // JALANKAN CEK LOKASI & SESI SAAT HALAMAN DIMUAT
 document.addEventListener('DOMContentLoaded', () => {
   checkLocation();
+  updateNetworkStatus();
 });
 </script>
 </body>
