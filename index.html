@@ -927,15 +927,12 @@ container.innerHTML = '';
 tempFormPhotos.forEach((rawUrl, idx) => {
 const wrapper = document.createElement('div');
 wrapper.className = 'relative inline-block m-0.5';
-// PERBAIKAN: Tombol hapus foto pada form input atas dihilangkan (tanda x dihapus)
 wrapper.innerHTML = `<img src="${rawUrl}" onclick="openImagePreview('${rawUrl}')" class="w-10 h-10 object-cover rounded border border-gray-300 cursor-pointer hover:opacity-80">`;
 container.appendChild(wrapper);
 });
 }
 
-// Fungsi hapus foto pada form atas dinonaktifkan / dikosongkan agar tanda x tidak muncul
 window.removeFormPhoto = function(index) {
-// Dikosongkan sesuai permintaan menghilangkan tanda x/hapus
 };
 
 window.submitSingleInputItem = async function(e) {
@@ -1207,7 +1204,6 @@ renderPhotoPreviews(container, photoUrls, fileIds);
 input.value = '';
 };
 
-// PRATINJAU GAMBAR BERSIH (TANDA X / TOMBOL HAPUS DI FOTO DIHILANGKAN)
 function renderPhotoPreviews(tdContainer, photoUrls, fileIds) {
 const previewContainer = tdContainer.querySelector('.photo-preview');
 if(!previewContainer) return;
@@ -1217,7 +1213,6 @@ photoUrls.forEach((rawUrl, idx) => {
 const formattedUrl = formatPhotoUrl(rawUrl);
 const wrapper = document.createElement('div');
 wrapper.className = 'relative inline-block m-0.5';
-// PERBAIKAN: Tombol hapus foto / tanda silang (x) pada foto di dalam tabel telah dihapus sepenuhnya
 wrapper.innerHTML = `
   <img src="${formattedUrl}" onclick="openImagePreview('${formattedUrl}')" title="Klik untuk melihat foto" class="w-8 h-8 object-cover rounded border border-gray-300 cursor-pointer hover:opacity-80">
 `;
@@ -1225,9 +1220,7 @@ previewContainer.appendChild(wrapper);
 });
 }
 
-// Fungsi removeSinglePhoto dikosongkan agar aman jika dipanggil
 window.removeSinglePhoto = async function(btn, index) {
-// Dikosongkan agar tanda x/hapus tidak berfungsi/muncul
 };
 
 window.openImagePreview = function(src) {
@@ -1837,66 +1830,56 @@ Swal.showLoading();
 
 setTimeout(() => {
 try {
-const timestamp = Date.now();
 const dateSuffix = getExportDateSuffix();
-const filename = `Penerimaan_Bahan_Baku_${dateSuffix}_${timestamp}.xlsx`;
-const dateDisplay = document.getElementById('displayHariTanggal').innerText;
-const excelData = [];
+const filename = `Penerimaan_Bahan_Baku_${dateSuffix}_${Date.now()}.xlsx`;
 
-excelData.push(['FORM PENERIMAAN BAHAN BAKU']);
-excelData.push(['Tanggal:', dateDisplay]);
-excelData.push([]);
-excelData.push(['No', 'Nama Barang', 'Jumlah Pesanan', 'Jumlah Diterima', 'Satuan', 'Kondisi Kemasan', 'Kondisi Fisik / Kesegaran', 'Suhu (°C)', 'Tanggal Kedaluwarsa', 'Sesuai Spesifikasi', 'Keterangan', 'Link Foto']);
+let tableHTML = document.getElementById('penerimaanTable').outerHTML;
+let parser = new DOMParser();
+let docParsed = parser.parseFromString(tableHTML, 'text/html');
 
-rows.forEach(row => {
-let photoData = [];
-try { photoData = JSON.parse(row.querySelector('.photo-data').value || "[]"); } catch(e){}
+let table = docParsed.querySelector('table');
+let trs = table.querySelectorAll('tr');
 
-const inputs = row.querySelectorAll('input:not(.photo-data):not(.photo-input-camera):not(.photo-input-gallery):not(.drive-file-id), select');
-const no = row.querySelector('.row-number') ? row.querySelector('.row-number').innerText : '';
-const nama = inputs[0] ? inputs[0].value : '';
-const order = inputs[1] ? inputs[1].value : '';
-const masuk = inputs[2] ? inputs[2].value : '';
-const satuan = inputs[3] ? inputs[3].value : '';
-const kemasan = inputs[4] ? inputs[4].value : '';
-const fisik = inputs[5] ? inputs[5].value : '';
-const suhu = inputs[6] ? inputs[6].value : '';
-const tglExpired = inputs[7] ? inputs[7].value : '';
-const sesuai = inputs[8] ? inputs[8].value : '';
-const ket = inputs[9] ? inputs[9].value : '';
-
-if (nama || photoData.length > 0) {
-excelData.push([no, nama, Number(order) || 0, Number(masuk) || 0, satuan, kemasan, fisik, suhu, tglExpired, sesuai, ket, photoData.join(', ') || '-']);
-}
+trs.forEach(tr => {
+let ths = tr.querySelectorAll('th');
+if (ths.length > 12) ths[12].remove();
+let tds = tr.querySelectorAll('td');
+if (tds.length > 12) tds[12].remove();
 });
 
-const worksheet = XLSX.utils.aoa_to_sheet(excelData);
-const workbook = XLSX.utils.book_new();
-XLSX.utils.book_append_sheet(workbook, worksheet, 'Penerimaan Bahan Baku');
+trs.forEach(tr => {
+let ths = tr.querySelectorAll('th');
+if (ths.length > 1) ths[1].remove();
+let tds = tr.querySelectorAll('td');
+if (tds.length > 1) tds[1].remove();
+});
 
-worksheet['!cols'] = [
-{ wch: 6 }, { wch: 25 }, { wch: 14 }, { wch: 14 },
-{ wch: 10 }, { wch: 16 }, { wch: 20 }, { wch: 10 },
-{ wch: 18 }, { wch: 16 }, { wch: 25 }, { wch: 45 }
-];
+trs.forEach(tr => {
+let inputs = tr.querySelectorAll('input, select');
+inputs.forEach(input => {
+let val = input.value || '';
+if (input.tagName.toLowerCase() === 'select') {
+val = input.options[input.selectedIndex] ? input.options[input.selectedIndex].text : '';
+}
+let parent = input.parentNode;
+parent.innerHTML = val;
+});
+});
 
-XLSX.writeFile(workbook, filename);
+let wb = XLSX.utils.table_to_book(table, { raw: true });
+XLSX.writeFile(wb, filename);
 
 Swal.fire({
 icon: 'success',
 title: 'Unduh Berhasil!',
-text: `Berkas Excel (${filename}) berhasil diunduh.`,
+text: `Berkas Excel (${filename}) berhasil disimpan.`,
 timer: 1500,
 showConfirmButton: false
 });
 } catch(e) {
-Swal.fire('Gagal Export', 'Gagal membuat file Excel: ' + e.message, 'error');
+Swal.fire('Gagal Export', 'Gagal membuat Excel: ' + e.message, 'error');
 }
 }, 100);
-};
-
-window.onload = function() {
-checkLocation();
 };
 </script>
 </body>
