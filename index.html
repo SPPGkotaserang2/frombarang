@@ -1018,22 +1018,39 @@ return;
 
 const dateKey = document.getElementById('inputDate').value || getFormattedToday();
 
-Swal.fire({
-title: 'Proses Cepat Simpan...',
-text: 'Harap tunggu...',
-allowOutsideClick: false,
-didOpen: () => {
-Swal.showLoading();
+// Tambahkan baris langsung ke tabel antarmuka web
+const initialPhotoUrls = [...tempFormPhotos];
+const filesToUpload = [...tempFormFiles];
+
+addRow(nama, order, masuk, satuan, kondisiKemasan, kondisiFisik, suhu, tglExpired, sesuaiSpec, ket, initialPhotoUrls, [], filesToUpload);
+
+const targetRow = document.querySelector('#tableBody tr:last-child');
+
+// Reset form langsung agar user bisa beraktivitas tanpa menunggu
+document.getElementById('inputNamaBahan').value = '';
+document.getElementById('inputOrder').value = '';
+document.getElementById('inputMasuk').value = '';
+document.getElementById('inputSatuan').value = '';
+document.getElementById('inputSuhu').value = '';
+document.getElementById('inputTglExpired').value = '';
+document.getElementById('inputKeterangan').value = '';
+tempFormPhotos = [];
+tempFormFiles = [];
+renderFormPhotoPreviews();
+
+// Simpan state awal ke Firebase
+if (window.saveDataToFirebase) {
+const dataToSave = getTableDataArray();
+await window.saveDataToFirebase(dateKey, dataToSave);
 }
-});
 
-let uploadedPhotoUrls = [];
-let uploadedFileIds = [];
+showToast('success...');
 
+// SINKRONISASI DI LATAR BELAKANG UNTUK UPLOAD KE GOOGLE DRIVE
+(async () => {
 try {
 const sanitizedNama = nama.replace(/[^a-zA-Z0-9-]/g, '_');
-
-const uploadPromises = tempFormFiles.map(async (file, fIndex) => {
+const uploadPromises = filesToUpload.map(async (file, fIndex) => {
   const compressedBase64 = await compressImage(file, 800, 0.6);
   const customFileName = `${sanitizedNama}_${dateKey}_${Date.now()}_${fIndex}.jpg`;
 
@@ -1052,6 +1069,9 @@ const uploadPromises = tempFormFiles.map(async (file, fIndex) => {
 
 const results = await Promise.all(uploadPromises);
 
+let uploadedPhotoUrls = [];
+let uploadedFileIds = [];
+
 results.forEach(res => {
   if (res.status === "success") {
     uploadedPhotoUrls.push(res.downloadUrl);
@@ -1059,39 +1079,35 @@ results.forEach(res => {
   }
 });
 
-addRow(nama, order, masuk, satuan, kondisiKemasan, kondisiFisik, suhu, tglExpired, sesuaiSpec, ket, uploadedPhotoUrls, uploadedFileIds, []);
+if (targetRow && document.body.contains(targetRow)) {
+  let photoDataInput = targetRow.querySelector('.photo-data');
+  let fileIdInput = targetRow.querySelector('.drive-file-id');
+  
+  let currentPhotos = [];
+  try { currentPhotos = JSON.parse(photoDataInput.value || "[]"); } catch(e){}
+  
+  uploadedPhotoUrls.forEach((url, i) => {
+    if (i < currentPhotos.length) {
+      currentPhotos[i] = url;
+    } else {
+      currentPhotos.push(url);
+    }
+  });
 
-const dataToSave = getTableDataArray();
-
-if (window.saveDataToFirebase) {
-await window.saveDataToFirebase(dateKey, dataToSave);
+  photoDataInput.value = JSON.stringify(currentPhotos);
+  fileIdInput.value = JSON.stringify(uploadedFileIds);
+  renderPhotoPreviews(targetRow.querySelector('td:nth-child(2)'), currentPhotos, uploadedFileIds);
+  
+  if (window.saveDataToFirebase) {
+    const updatedData = getTableDataArray();
+    await window.saveDataToFirebase(dateKey, updatedData);
+  }
 }
-
-Swal.close();
-
-document.getElementById('inputNamaBahan').value = '';
-document.getElementById('inputOrder').value = '';
-document.getElementById('inputMasuk').value = '';
-document.getElementById('inputSatuan').value = '';
-document.getElementById('inputSuhu').value = '';
-document.getElementById('inputTglExpired').value = '';
-document.getElementById('inputKeterangan').value = '';
-tempFormPhotos = [];
-tempFormFiles = [];
-renderFormPhotoPreviews();
-
-Swal.fire({
-icon: 'success',
-title: 'Berhasil Disimpan!',
-text: 'Data & Foto tersimpan Di Sistem.',
-timer: 1500,
-showConfirmButton: false
-});
-
+showToast('info', 'Foto tersinkron ke Kesistem!');
 } catch (err) {
-console.error("Gagal otomatis simpan:", err);
-Swal.fire('Terjadi Kesalahan', 'Gagal memproses unggah foto/penyimpanan: ' + err.message, 'error');
+console.error("Gagal sinkronisasi latar belakang:", err);
 }
+})();
 };
 
 function getTableDataArray() {
