@@ -243,18 +243,12 @@ Status Akses: <span id="userRoleBadge" class="font-bold text-indigo-600 uppercas
 </div>
 
 <div class="flex flex-wrap justify-between items-end gap-4">
+<!-- PILIH TANGGAL TRANSAKSI (SATU TANGGAL) -->
 <div class="flex flex-wrap items-end gap-3 bg-gray-50 p-3 rounded-lg border border-gray-200">
 <div>
-<label class="block text-xs font-semibold text-gray-600 mb-1">Dari Tanggal</label>
-<input type="date" id="startDate" class="p-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+<label class="block text-xs font-semibold text-gray-600 mb-1">Pilih Tanggal Transaksi</label>
+<input type="date" id="inputDate" onchange="onDateInputChange(this.value)" class="p-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
 </div>
-<div>
-<label class="block text-xs font-semibold text-gray-600 mb-1">Sampai Tanggal</label>
-<input type="date" id="endDate" class="p-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
-</div>
-<button onclick="filterByDateRange()" class="px-3 py-1.5 text-sm font-medium text-white bg-slate-700 hover:bg-slate-800 rounded-md transition-colors flex items-center gap-1">
-<i class="fa-solid fa-magnifying-glass"></i> Cari Data
-</button>
 <button onclick="loadTodayData()" class="px-3 py-1.5 text-sm font-medium text-gray-600 bg-gray-200 hover:bg-gray-300 rounded-md transition-colors">
 Hari Ini
 </button>
@@ -354,7 +348,7 @@ Hari Ini
 Upload Foto Barang <span class="text-red-500 font-bold">*</span>
 </label>
 <div class="flex flex-wrap items-center gap-3" id="singleFormPhotoContainer">
-<input type="file" accept="image/*" id="singleFormCamera" class="hidden" capture="environment" onchange="handleFormPhotoUpload(this)">
+<input type="file" accept="image/*" id="singleFormCamera" class="hidden" onchange="handleFormPhotoUpload(this)">
 <input type="file" accept="image/*" id="singleFormGallery" multiple class="hidden" onchange="handleFormPhotoUpload(this)">
 <button type="button" onclick="triggerFormPhotoUploadChoice()" class="px-4 py-2 border-2 border-dashed border-indigo-400 text-indigo-600 hover:bg-indigo-50 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
 <i class="fa-solid fa-camera"></i> Unggah / Ambil Foto
@@ -384,11 +378,6 @@ Upload Foto Barang <span class="text-red-500 font-bold">*</span>
 <div id="displayHariTanggal" class="text-sm font-bold text-gray-800 mt-1"></div>
 </div>
 </div>
-</div>
-
-<div class="mb-6 text-sm no-print max-w-xs">
-<label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Pilih Tanggal Transaksi</label>
-<input type="date" id="inputDate" onchange="onDateInputChange(this.value)" class="input-print-border w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none">
 </div>
 
 <div class="overflow-x-auto mb-6">
@@ -459,7 +448,7 @@ Selesai
 <!-- SCRIPT FIREBASE -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, doc, setDoc, getDoc, deleteDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const firebaseConfig = {
 apiKey: "AIzaSyCOlHm2fFmClq9wpVcdcQ0Y_6OqFOnpvaM",
@@ -510,23 +499,6 @@ showToast('error', "Gagal menghapus data: " + e.message);
 return false;
 }
 };
-
-window.filterDataByDateRangeFirebase = async function(startDate, endDate) {
-try {
-const querySnapshot = await getDocs(collection(db, "penerimaan_barang"));
-const results = [];
-querySnapshot.forEach((docSnap) => {
-const data = docSnap.data();
-if (data.date >= startDate && data.date <= endDate) {
-results.push(data);
-}
-});
-return results;
-} catch (e) {
-console.error("Error filtering Sistem data: ", e);
-return [];
-}
-};
 </script>
 
 <!-- LOGIKA APLIKASI UTAMA -->
@@ -536,7 +508,6 @@ const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwKfirt58sKPJln
 let tempFormFiles = [];
 let tempFormPhotos = [];
 
-// DAFTAR KATA KUNCI NAMA BARANG KEMASAN YANG WAJIB ISI EXPIRED
 const KEMASAN_KEYWORDS = [
   'minyak', 'gula', 'susu', 'kecap', 'saos', 'saus', 'mentega', 'sirup', 
   'terigu', 'tepung', 'sarden', 'kaleng', 'kopi', 'teh', 'mi', 'mie', 
@@ -550,7 +521,6 @@ function isPackagingItemByName(nama) {
   return KEMASAN_KEYWORDS.some(keyword => lowerName.includes(keyword));
 }
 
-// SIMPAN INFO LOGIN & AUTOLOGOUT 1 MINGGU (7 HARI)
 function checkLoginExpiration() {
   const loginTime = localStorage.getItem('loginTimestamp');
   if (loginTime) {
@@ -564,10 +534,9 @@ function checkLoginExpiration() {
   }
 }
 
-// AUTOMATIC REFRESH HARI/JAM/UPDATE HTML
 setInterval(() => {
   location.reload();
-}, 3600000); // 1 jam = 3,600,000 ms
+}, 3600000);
 
 let currentEtag = null;
 async function checkForHtmlUpdates() {
@@ -583,7 +552,7 @@ async function checkForHtmlUpdates() {
     console.error("Gagal mengecek update file:", e);
   }
 }
-setInterval(checkForHtmlUpdates, 300000); // Cek update kode setiap 5 menit
+setInterval(checkForHtmlUpdates, 300000);
 
 window.downloadPhotoDirectly = async function(url, filename) {
   try {
@@ -614,27 +583,49 @@ window.downloadPhotoDirectly = async function(url, filename) {
 
 function compressImage(file, maxWidth = 800, quality = 0.6) {
   return new Promise((resolve) => {
+    if (!file || !file.type.startsWith('image/')) {
+      resolve('');
+      return;
+    }
     const reader = new FileReader();
+    reader.onerror = () => resolve('');
     reader.onload = (event) => {
       const img = new Image();
+      img.onerror = () => {
+        resolve(event.target.result);
+      };
       img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
+        try {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
 
-        if (width > maxWidth) {
-          height = Math.round((height * maxWidth) / width);
-          width = maxWidth;
+          if (!width || !height) {
+            resolve(event.target.result);
+            return;
+          }
+
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(event.target.result);
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const dataUrl = canvas.toDataURL('image/jpeg', quality);
+          resolve(dataUrl);
+        } catch (err) {
+          console.error("Kompresi canvas gagal:", err);
+          resolve(event.target.result);
         }
-
-        canvas.width = width;
-        canvas.height = height;
-
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-
-        const dataUrl = canvas.toDataURL('image/jpeg', quality);
-        resolve(dataUrl);
       };
       img.src = event.target.result;
     };
@@ -685,12 +676,6 @@ document.getElementById('loginScreen').classList.remove('hidden');
 }
 }
 
-function showLocationError() {
-document.getElementById('mainApp').classList.add('hidden');
-document.getElementById('loginScreen').classList.add('hidden');
-document.getElementById('locationErrorScreen').classList.remove('hidden');
-}
-
 const Toast = Swal.mixin({
 toast: true,
 position: 'top-end',
@@ -725,11 +710,6 @@ window.openPublicStockViewer = async function() {
 const { value: code } = await Swal.fire({
 title: 'Masukkan Kode Akses',
 input: 'password',
-inputPlaceholder: '',
-inputAttributes: {
-autocapitalize: 'off',
-autocorrect: 'off'
-},
 showCancelButton: true,
 confirmButtonText: 'Lanjutkan',
 cancelButtonText: 'Batal',
@@ -776,7 +756,7 @@ const photoUrls = item.photo || [];
 let photoHtml = '-';
 if (photoUrls.length > 0) {
 const formattedUrl = formatPhotoUrl(photoUrls[0]);
-photoHtml = `<img src="${formattedUrl}" onclick="openImagePreview('${formattedUrl}')" class="w-10 h-10 object-cover rounded border border-gray-300 cursor-pointer hover:opacity-80 inline-block" title="Klik Pratinjau">`;
+photoHtml = `<img src="${formattedUrl}" onerror="this.onerror=null; this.src='https://via.placeholder.com/40?text=IMG';" onclick="openImagePreview('${formattedUrl}')" class="w-10 h-10 object-cover rounded border border-gray-300 cursor-pointer hover:opacity-80 inline-block" title="Klik Pratinjau">`;
 if (photoUrls.length > 1) {
 photoHtml += ` <span class="text-[10px] bg-gray-200 px-1 rounded"> +${photoUrls.length - 1}</span>`;
 }
@@ -964,16 +944,13 @@ function renderFormPhotoPreviews() {
 const container = document.getElementById('formPhotoPreview');
 container.innerHTML = '';
 
-tempFormPhotos.forEach((rawUrl, idx) => {
+tempFormPhotos.forEach((rawUrl) => {
 const wrapper = document.createElement('div');
 wrapper.className = 'relative inline-block m-0.5';
-wrapper.innerHTML = `<img src="${rawUrl}" onclick="openImagePreview('${rawUrl}')" class="w-10 h-10 object-cover rounded border border-gray-300 cursor-pointer hover:opacity-80">`;
+wrapper.innerHTML = `<img src="${rawUrl}" onerror="this.onerror=null; this.src='https://via.placeholder.com/40?text=IMG';" onclick="openImagePreview('${rawUrl}')" class="w-10 h-10 object-cover rounded border border-gray-300 cursor-pointer hover:opacity-80">`;
 container.appendChild(wrapper);
 });
 }
-
-window.removeFormPhoto = function(index) {
-};
 
 window.submitSingleInputItem = async function(e) {
 e.preventDefault();
@@ -1018,7 +995,6 @@ return;
 
 const dateKey = document.getElementById('inputDate').value || getFormattedToday();
 
-// Tambahkan baris langsung ke tabel antarmuka web
 const initialPhotoUrls = [...tempFormPhotos];
 const filesToUpload = [...tempFormFiles];
 
@@ -1026,7 +1002,6 @@ addRow(nama, order, masuk, satuan, kondisiKemasan, kondisiFisik, suhu, tglExpire
 
 const targetRow = document.querySelector('#tableBody tr:last-child');
 
-// Reset form langsung agar user bisa beraktivitas tanpa menunggu
 document.getElementById('inputNamaBahan').value = '';
 document.getElementById('inputOrder').value = '';
 document.getElementById('inputMasuk').value = '';
@@ -1038,15 +1013,13 @@ tempFormPhotos = [];
 tempFormFiles = [];
 renderFormPhotoPreviews();
 
-// Simpan state awal ke Firebase
 if (window.saveDataToFirebase) {
 const dataToSave = getTableDataArray();
 await window.saveDataToFirebase(dateKey, dataToSave);
 }
 
-showToast('success...');
+showToast('success', 'Barang ditambahkan');
 
-// SINKRONISASI DI LATAR BELAKANG UNTUK UPLOAD KE GOOGLE DRIVE
 (async () => {
 try {
 const sanitizedNama = nama.replace(/[^a-zA-Z0-9-]/g, '_');
@@ -1103,7 +1076,7 @@ if (targetRow && document.body.contains(targetRow)) {
     await window.saveDataToFirebase(dateKey, updatedData);
   }
 }
-showToast('info', 'Foto tersinkron ke Kesistem!');
+showToast('info', 'Foto tersinkron ke sistem!');
 } catch (err) {
 console.error("Gagal sinkronisasi latar belakang:", err);
 }
@@ -1158,7 +1131,7 @@ tr.innerHTML = `
 <td class="border border-gray-300 p-1 text-center font-medium row-number">${rowCount}</td>
 <td class="border border-gray-300 p-1 text-center align-middle">
   <div class="relative group flex items-center justify-center gap-1 flex-wrap">
-    <input type="file" accept="image/*" class="hidden photo-input-camera" capture="environment" onchange="handlePhotoUpload(this)">
+    <input type="file" accept="image/*" class="hidden photo-input-camera" onchange="handlePhotoUpload(this)">
     <input type="file" accept="image/*" multiple class="hidden photo-input-gallery" onchange="handlePhotoUpload(this)">
     <input type="hidden" class="photo-data" value='${JSON.stringify(photoArray)}'>
     <input type="hidden" class="drive-file-id" value='${JSON.stringify(fileIdArray)}'>
@@ -1260,28 +1233,25 @@ renderPhotoPreviews(container, photoUrls, fileIds);
 input.value = '';
 };
 
-function renderPhotoPreviews(tdContainer, photoUrls, fileIds) {
+function renderPhotoPreviews(tdContainer, photoUrls) {
 const previewContainer = tdContainer.querySelector('.photo-preview');
 if(!previewContainer) return;
 previewContainer.innerHTML = '';
 
-photoUrls.forEach((rawUrl, idx) => {
+photoUrls.forEach((rawUrl) => {
 const formattedUrl = formatPhotoUrl(rawUrl);
 const wrapper = document.createElement('div');
 wrapper.className = 'relative inline-block m-0.5';
 wrapper.innerHTML = `
-  <img src="${formattedUrl}" onclick="openImagePreview('${formattedUrl}')" title="Klik untuk melihat foto" class="w-8 h-8 object-cover rounded border border-gray-300 cursor-pointer hover:opacity-80">
+  <img src="${formattedUrl}" onerror="this.onerror=null; this.src='https://via.placeholder.com/40?text=IMG';" onclick="openImagePreview('${formattedUrl}')" title="Klik untuk melihat foto" class="w-8 h-8 object-cover rounded border border-gray-300 cursor-pointer hover:opacity-80">
 `;
 previewContainer.appendChild(wrapper);
 });
 }
 
-window.removeSinglePhoto = async function(btn, index) {
-};
-
 window.openImagePreview = function(src) {
 if (!src) return;
-document.getElementById('previewImageSrc').src = src;
+document.getElementById('previewImageSrc').src = formatPhotoUrl(src);
 document.getElementById('imagePreviewModal').classList.remove('hidden');
 };
 
@@ -1524,7 +1494,7 @@ row._rawFiles = [];
 
 row.querySelector('.photo-data').value = JSON.stringify(photoData);
 row.querySelector('.drive-file-id').value = JSON.stringify(fileIdData);
-renderPhotoPreviews(row.querySelector('td:nth-child(2)'), photoData, fileIdData);
+renderPhotoPreviews(row.querySelector('td:nth-child(2)'), photoData);
 
 if (nama || photoData.length > 0) {
 dataToSave.push({ nama, order, masuk, satuan, kemasan, fisik, suhu, tglExpired, sesuai, ket, photo: photoData, fileId: fileIdData });
@@ -1576,7 +1546,7 @@ method: "POST",
 body: JSON.stringify({ action: "delete", fileId: fId })
 });
 } catch(err) {
-console.error("Gagal hapus foto Di Sistem:", err);
+console.error("Gagal hapus foto:", err);
 }
 }
 }
@@ -1631,55 +1601,7 @@ loadDataByDate(dateVal);
 window.loadTodayData = function() {
 const todayStr = getFormattedToday();
 document.getElementById('inputDate').value = todayStr;
-document.getElementById('startDate').value = todayStr;
-document.getElementById('endDate').value = todayStr;
 onDateInputChange(todayStr);
-};
-
-window.filterByDateRange = async function() {
-const start = document.getElementById('startDate').value;
-const end = document.getElementById('endDate').value;
-
-if (!start || !end) {
-showToast('warning', 'Pilih rentang tanggal (Dari & Sampai).');
-return;
-}
-
-document.getElementById('tableBody').innerHTML = '';
-
-let filteredDocs = [];
-if (window.filterDataByDateRangeFirebase) {
-filteredDocs = await window.filterDataByDateRangeFirebase(start, end);
-}
-
-if (filteredDocs.length === 0) {
-showToast('info', 'Tidak ada data pada rentang tanggal tersebut.');
-updateNextNoUrut();
-return;
-}
-
-filteredDocs.sort((a, b) => a.date.localeCompare(b.date)).forEach(docData => {
-docData.items.forEach(item => {
-addRow(
-item.nama,
-item.order,
-item.masuk,
-item.satuan,
-item.kemasan || 'Baik',
-item.fisik || 'Baik',
-item.suhu || '',
-item.tglExpired || '',
-item.sesuai || 'Ya',
-item.ket || '',
-item.photo || [],
-item.fileId || []
-);
-});
-});
-
-document.getElementById('displayHariTanggal').innerText = `${start} s/d ${end}`;
-updateNextNoUrut();
-showToast('success', 'Data berhasil ditampilkan.');
 };
 
 window.resetForm = function() {
@@ -1732,7 +1654,8 @@ return replacedList;
 }
 
 function restoreInputs(replacedList) {
-replacedList.forEach(item => {item.input.style.display = '';
+replacedList.forEach(item => {
+item.input.style.display = '';
 if(item.span && item.span.parentNode) {
 item.span.parentNode.removeChild(item.span);
 }
@@ -1740,11 +1663,6 @@ item.span.parentNode.removeChild(item.span);
 }
 
 function getExportDateSuffix() {
-const start = document.getElementById('startDate').value;
-const end = document.getElementById('endDate').value;
-if (start && end) {
-return `${start}_sd_${end}`;
-}
 return document.getElementById('inputDate').value || getFormattedToday();
 }
 
@@ -1937,7 +1855,6 @@ Swal.fire('Gagal Export', 'Gagal membuat Excel: ' + e.message, 'error');
 }, 100);
 };
 
-// LOGIKA UPDATE INDIKATOR KEKUATAN JARINGAN INTERNET
 function updateNetworkStatus() {
   const badge = document.getElementById('networkStatusBadge');
   const icon = document.getElementById('networkIcon');
@@ -1953,8 +1870,8 @@ function updateNetworkStatus() {
 
   const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
   if (conn) {
-    const effectiveType = conn.effectiveType; // '4g', '3g', '2g', 'slow-2g'
-    const rtt = conn.rtt; // Round Trip Time (ms)
+    const effectiveType = conn.effectiveType;
+    const rtt = conn.rtt;
     
     if (effectiveType === '4g' && (rtt === undefined || rtt < 250)) {
       badge.className = "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 border border-emerald-200";
@@ -1982,7 +1899,6 @@ if (navigator.connection) {
   navigator.connection.addEventListener('change', updateNetworkStatus);
 }
 
-// JALANKAN CEK LOKASI & SESI SAAT HALAMAN DIMUAT
 document.addEventListener('DOMContentLoaded', () => {
   checkLocation();
   updateNetworkStatus();
