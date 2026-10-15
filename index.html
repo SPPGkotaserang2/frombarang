@@ -359,7 +359,7 @@ Upload Foto Barang <span class="text-red-500 font-bold">*</span>
 
 <div class="flex justify-end pt-2 border-t">
 <button type="submit" id="btnSubmitItem" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 shadow-md">
-<i class="fa-solid fa-plus"></i> Tambah ke Tabel
+<i class="fa-solid fa-plus"></i> Simpan
 </button>
 </div>
 </form>
@@ -1076,7 +1076,7 @@ if (targetRow && document.body.contains(targetRow)) {
     await window.saveDataToFirebase(dateKey, updatedData);
   }
 }
-showToast('info', 'Foto tersinkron ke sistem!');
+showToast('info', 'Foto Terkirim ke sistem!');
 } catch (err) {
 console.error("Gagal sinkronisasi latar belakang:", err);
 }
