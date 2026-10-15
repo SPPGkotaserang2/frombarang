@@ -252,6 +252,10 @@ Status Akses: <span id="userRoleBadge" class="font-bold text-indigo-600 uppercas
 <button onclick="loadTodayData()" class="px-3 py-1.5 text-sm font-medium text-gray-600 bg-gray-200 hover:bg-gray-300 rounded-md transition-colors">
 Hari Ini
 </button>
+<!-- Tombol Refresh Tabel Ditambahkan Di Sini -->
+<button onclick="refreshTableData()" class="px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors flex items-center gap-1.5 shadow-sm">
+<i class="fa-solid fa-rotate"></i> Refresh Tabel
+</button>
 </div>
 
 <!-- TOMBOL UNDUH LANGSUNG OTOMATIS -->
@@ -1602,6 +1606,18 @@ window.loadTodayData = function() {
 const todayStr = getFormattedToday();
 document.getElementById('inputDate').value = todayStr;
 onDateInputChange(todayStr);
+};
+
+// Fungsi Refresh Tabel Ditambahkan Di Sini
+window.refreshTableData = async function() {
+const dateKey = document.getElementById('inputDate').value;
+if (!dateKey) {
+showToast('warning', 'Silakan pilih tanggal transaksi terlebih dahulu.');
+return;
+}
+showToast('info', 'Memperbarui tabel...');
+await loadDataByDate(dateKey);
+showToast('success', 'Tabel berhasil diperbarui!');
 };
 
 window.resetForm = function() {
